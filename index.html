@@ -1,0 +1,1654 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="مصحف الروايتين">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box;height:100%}
+[hidden]{display:none!important}</style>
+<script>window.MUSHAF_STANDALONE=true;window.MUSHAF_SW=true;</script>
+</head>
+<body>
+<title>مصحف ورش وشعبة</title>
+<style>
+/* Full-screen mushaf: the page fills the screen; a tap shows a top bar (riwayah, differences,
+   index) and a bottom bar (page, slider).  Pages are drawn on canvas from the KFGQPC glyphs;
+   a transparent text layer over them makes the text selectable and copyable. */
+/* High contrast, as in the Tarteel app: black on white, white on black. */
+:root{
+  --paper:#ffffff; --ground:#eef0ec; --ink:#000000; --diff:#d4101c; --accent:#1e5a4b; --accent-ink:#f6f2e6;
+  --frame:#1d2a26; --sura:#000000; --muted:#5d5f59; --hl:rgba(30,90,75,.12); --sel:rgba(30,90,75,.30); --found:rgba(216,150,20,.38);
+  --bar:rgba(255,255,255,.95); --line:rgba(0,0,0,.12); --card:#ffffff; --shadow:0 10px 30px rgba(20,24,20,.18);
+  --ui:system-ui,-apple-system,"Segoe UI","Noto Sans Arabic","Noto Naskh Arabic",Tahoma,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#000000; --ground:#1b1c1a; --ink:#ffffff; --diff:#ff5a4f; --accent:#86c9b3; --accent-ink:#0f110e;
+  --frame:#e9ece7; --sura:#ffffff; --muted:#a2a49e; --hl:rgba(134,201,179,.20); --sel:rgba(134,201,179,.38); --found:rgba(240,180,60,.42);
+  --bar:rgba(16,17,16,.95); --line:rgba(255,255,255,.14); --card:#151614; --shadow:0 10px 30px rgba(0,0,0,.6); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#000000; --ground:#1b1c1a; --ink:#ffffff; --diff:#ff5a4f; --accent:#86c9b3; --accent-ink:#0f110e;
+  --frame:#e9ece7; --sura:#ffffff; --muted:#a2a49e; --hl:rgba(134,201,179,.20); --sel:rgba(134,201,179,.38); --found:rgba(240,180,60,.42);
+  --bar:rgba(16,17,16,.95); --line:rgba(255,255,255,.14); --card:#151614; --shadow:0 10px 30px rgba(0,0,0,.6); color-scheme:dark}
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none}
+body{background:var(--paper);color:var(--ink);font-family:var(--ui);-webkit-tap-highlight-color:transparent}
+#app{position:relative;height:100%;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input{-webkit-user-select:text;user-select:text}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;-webkit-touch-callout:none}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+
+/* ---- pages ---- */
+#viewport{position:absolute;inset:0;overflow:hidden;touch-action:pan-y pinch-zoom;background:var(--paper)}
+.slot{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--paper);will-change:transform;
+  padding:max(0px,calc(var(--inset-top,0px) - env(safe-area-inset-top,0px))) 0 0}
+.phead,.pfoot{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 14px;
+  font-size:13px;color:var(--muted);height:26px;white-space:nowrap;overflow:hidden}
+.phead .pj{font-variant-numeric:tabular-nums;color:var(--ink);opacity:.8;display:flex;align-items:center}
+.phead .pie{width:13px;height:13px;margin:0 7px;flex:none}
+.phead .pr{color:var(--accent);font-weight:700;font-size:12.5px}
+.phead .ps{color:var(--ink);opacity:.8}
+.pfoot{justify-content:center;height:22px;font-size:13.5px;font-variant-numeric:tabular-nums}
+.pbox{flex:1;min-height:0;position:relative}
+.pbox canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tl{position:absolute;inset:0;overflow:hidden;direction:rtl;-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;
+  font-family:var(--ui)}
+.tl span{position:absolute;top:0;white-space:pre;color:transparent;transform-origin:0 0;cursor:text}
+.tl span::selection{background:transparent;color:transparent}
+.tl span::-moz-selection{background:transparent;color:transparent}
+
+/* ---- bars ---- */
+.bar{position:fixed;left:0;right:0;z-index:10;background:var(--bar);
+  -webkit-backdrop-filter:saturate(1.2) blur(12px);backdrop-filter:saturate(1.2) blur(12px);
+  visibility:hidden;transition:transform .22s cubic-bezier(.2,.7,.2,1),visibility 0s linear .22s}
+.bar.top{top:0;transform:translateY(-104%);display:flex;align-items:center;gap:8px;
+  padding:max(env(safe-area-inset-top,0px),var(--inset-top,0px)) 10px 8px;padding-top:calc(max(env(safe-area-inset-top,0px),var(--inset-top,0px)) + 8px);
+  border-bottom:1px solid var(--line);box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.bar.bottom{bottom:0;transform:translateY(104%);padding:8px 12px calc(max(env(safe-area-inset-bottom,0px),var(--inset-bottom,0px)) + 8px);
+  border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:6px}
+body.bars .bar{transform:none;visibility:visible;transition:transform .22s cubic-bezier(.2,.7,.2,1),visibility 0s}
+.iconbtn{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;flex:none}
+.iconbtn:active{background:var(--hl)}
+.iconbtn svg{width:22px;height:22px}
+.seg{flex:1;display:flex;max-width:320px;margin:0 auto;background:var(--ground);border-radius:14px;padding:4px;gap:4px}
+.seg button{flex:1;height:36px;border-radius:10px;font-size:17px;font-weight:600;color:var(--muted);transition:background .15s,color .15s}
+.seg button[aria-checked="true"]{background:var(--accent);color:var(--accent-ink);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.diffbtn{flex:none;height:36px;display:flex;align-items:center;gap:7px;padding:0 12px;border-radius:12px;
+  border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--muted)}
+.diffbtn .dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--diff);box-sizing:border-box}
+.diffbtn[aria-pressed="true"]{color:var(--diff);border-color:var(--diff);border-color:color-mix(in srgb,var(--diff) 45%,transparent)}
+.diffbtn[aria-pressed="true"] .dot{background:var(--diff)}
+.where{display:flex;justify-content:center;align-items:baseline;gap:10px;min-height:28px;border-radius:10px;
+  font-size:14px;color:var(--ink);padding:2px 8px}
+.where .wp{color:var(--muted);font-variant-numeric:tabular-nums}
+.where:active{background:var(--hl)}
+.nav{display:flex;align-items:center;gap:6px}
+.nav input{flex:1;min-width:0;accent-color:var(--accent);height:28px;direction:rtl}
+
+/* ---- selection actions, toast, loading ---- */
+.selbar{position:fixed;z-index:12;left:0;right:0;margin:0 auto;width:max-content;
+  bottom:calc(max(env(safe-area-inset-bottom,0px),var(--inset-bottom,0px)) + 18px);
+  display:flex;gap:2px;padding:4px;border-radius:14px;background:var(--card);box-shadow:var(--shadow);border:1px solid var(--line);
+  max-width:calc(100% - 32px)}
+body.bars .selbar{bottom:calc(var(--bbh,110px) + 10px)}
+.selbar button{height:38px;padding:0 12px;border-radius:10px;font-size:14px;font-weight:600;white-space:nowrap}
+.selbar button:active{background:var(--hl)}
+.selbar [data-act="info"]{color:var(--diff)}
+.selbar[hidden],.toast[hidden]{display:none!important}
+.toast{position:fixed;z-index:30;left:0;right:0;margin:0 auto;width:max-content;top:calc(max(env(safe-area-inset-top,0px),var(--inset-top,0px)) + 64px);
+  max-width:min(calc(100% - 40px),440px);box-sizing:border-box;background:var(--ink);color:var(--paper);border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.6;
+  box-shadow:var(--shadow);text-align:center;pointer-events:none}
+#loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:15px;pointer-events:none;z-index:2}
+#loading[hidden]{display:none!important}
+.spinner{width:28px;height:28px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);
+  animation:spin 0.9s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(1turn)}}
+@media (prefers-reduced-motion:reduce){.spinner{animation-duration:3s}.slot,.bar{transition:none!important}}
+
+/* ---- sheets ---- */
+.scrim{position:fixed;inset:0;background:rgba(10,10,8,.42);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.scrim[hidden]{display:none!important}
+.sheet{width:100%;max-width:560px;max-height:86%;background:var(--card);color:var(--ink);border-radius:18px 18px 0 0;
+  box-shadow:var(--shadow);display:flex;flex-direction:column;
+  padding-bottom:max(env(safe-area-inset-bottom,0px),var(--inset-bottom,0px))}
+.sheet-h{display:flex;align-items:center;gap:8px;padding:12px 14px 8px}
+.sheet-h h2{font-size:17px;margin:0;flex:1;text-wrap:balance}
+.tabs{display:flex;gap:6px;padding:0 14px 8px}
+.tabs button{height:34px;padding:0 14px;border-radius:10px;font-size:15px;color:var(--muted);background:var(--ground)}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.goto{display:flex;gap:8px;padding:0 14px 10px}
+.goto input{flex:1;min-width:0;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--paper);
+  color:var(--ink);font:inherit;font-size:16px;padding:0 12px;text-align:center}
+.goto button{height:40px;padding:0 16px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:600}
+.list{overflow:auto;-webkit-overflow-scrolling:touch;padding:0 6px 10px;min-height:0}
+.row{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px;width:100%;text-align:right;
+  padding:10px 10px;border-radius:10px;font-size:16px}
+.row:active,.row.cur{background:var(--hl)}
+.row .n{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;border:1px solid var(--gold);
+  font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row .meta{font-size:12px;color:var(--muted);display:block;margin-top:2px}
+.row .pg{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.settings{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 14px 12px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+.settings label{display:flex;align-items:center;gap:8px}
+.settings .opt{display:flex;gap:4px;background:var(--ground);border-radius:10px;padding:3px}
+.settings .opt button{height:30px;padding:0 10px;border-radius:8px;font-size:13px}
+.settings .opt button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.about{padding:0 14px 14px;font-size:12px;line-height:1.7;color:var(--muted)}
+.info{padding:6px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.info .ref{font-size:15px;font-weight:600;padding-top:8px}
+.cmp{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;background:var(--paper);border-radius:12px;padding:10px 12px}
+.cmp .lbl{font-size:13px;color:var(--muted)}
+.cmp .w{font-size:30px;line-height:1.9;direction:rtl}
+.cmp canvas{height:56px;justify-self:start}
+.hafsfont{font-family:"KFGQPC Hafs",serif}
+.note{font-size:13px;color:var(--muted);line-height:1.6}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.btn{height:40px;padding:0 18px;border-radius:12px;background:var(--ground);font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.notes{display:flex;flex-direction:column;gap:6px}
+.notes p{margin:0;font-size:13.5px;line-height:1.7;color:var(--ink)}
+.notes b{color:var(--diff);font-weight:700}
+
+/* ---- search ---- */
+.sheet.tall{height:86%}
+.sbox{display:flex;gap:8px;align-items:center;padding:12px 14px 8px}
+.sbox input{flex:1;min-width:0;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--paper);color:var(--ink);
+  font:inherit;font-size:17px;padding:0 14px;direction:rtl;-webkit-appearance:none;appearance:none}
+.sbox input::-webkit-search-cancel-button{display:none}
+.chips{display:flex;gap:6px;padding:0 14px 8px;flex-wrap:wrap}
+.chips button{height:34px;padding:0 13px;border-radius:17px;font-size:14px;color:var(--muted);background:var(--ground)}
+.chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.sstat{padding:0 16px 6px;font-size:13px;color:var(--muted);min-height:18px}
+.results{overflow:auto;-webkit-overflow-scrolling:touch;padding:0 8px 12px;min-height:0;flex:1}
+.res{display:block;width:100%;text-align:right;padding:10px 10px 12px;border-radius:12px;border-bottom:1px solid var(--line)}
+.res:active{background:var(--hl)}
+.res .rh{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted);margin-bottom:2px}
+.res .rh b{color:var(--ink);font-weight:600}
+.res .rt{font-family:"KFGQPC Hafs",serif;font-size:22px;line-height:2.05;color:var(--ink);direction:rtl;word-spacing:2px}
+.res mark{background:var(--found);color:inherit;border-radius:5px;padding:0 1px}
+.more{display:block;margin:10px auto 4px;height:40px;padding:0 20px;border-radius:12px;background:var(--ground);font-weight:600}
+.empty{padding:28px 18px;text-align:center;color:var(--muted);font-size:14px;line-height:1.8}
+.findbar{position:fixed;z-index:11;left:0;right:0;margin:0 auto;width:max-content;max-width:calc(100% - 24px);
+  bottom:calc(max(env(safe-area-inset-bottom,0px),var(--inset-bottom,0px)) + 16px);
+  display:flex;align-items:center;gap:2px;padding:4px;border-radius:16px;background:var(--card);box-shadow:var(--shadow);border:1px solid var(--line)}
+body.bars .findbar{bottom:calc(var(--bbh,110px) + 10px)}
+.findbar.top{bottom:auto;top:calc(max(env(safe-area-inset-top,0px),var(--inset-top,0px)) + 8px)}
+body.bars .findbar.top{top:auto;bottom:calc(var(--bbh,110px) + 10px)}
+.findbar[hidden]{display:none!important}
+.findbar .fq{font-size:14px;padding:0 8px;max-width:38vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.findbar .fn{font-size:14px;font-weight:600;padding:0 4px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.findbar .iconbtn{width:38px;height:38px}
+
+/* ---- dabt legend ---- */
+.legend{overflow:auto;-webkit-overflow-scrolling:touch;padding:0 12px 14px;min-height:0}
+.lg{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;padding:10px 6px;border-bottom:1px solid var(--line);width:100%;text-align:right}
+.lg canvas{grid-row:span 2;justify-self:center;background:var(--paper);border-radius:10px}
+.lg .lt{font-size:15px;font-weight:700}
+.lg .ld{font-size:13px;line-height:1.7;color:var(--muted)}
+.lg .lr{font-size:12px;color:var(--accent)}
+.linkbtn{height:36px;padding:0 12px;border-radius:10px;background:var(--ground);font-size:14px;font-weight:600;color:var(--ink)}
+</style>
+
+<div id="app" dir="rtl" lang="ar">
+  <main id="viewport" aria-label="صفحات المصحف"></main>
+  <header class="bar top" id="topBar">
+    <button class="iconbtn" id="menuBtn" aria-label="الفهرس والإعدادات">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <button class="iconbtn" id="searchBtn" aria-label="البحث في القرآن">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/></svg>
+    </button>
+    <div class="seg" role="radiogroup" aria-label="الرواية">
+      <button role="radio" id="r-warsh" data-r="warsh" aria-checked="true">ورش</button>
+      <button role="radio" id="r-shubah" data-r="shubah" aria-checked="false">شعبة</button>
+    </div>
+    <button class="diffbtn" id="diffBtn" aria-pressed="true" title="إظهار الفرق عن رواية حفص بالأحمر"><span class="dot"></span>الفروق</button>
+    <button class="iconbtn" id="fsBtn" aria-label="ملء الشاشة" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+  </header>
+  <footer class="bar bottom" id="bottomBar">
+    <button class="where" id="whereBtn" aria-label="الفهرس والانتقال إلى صفحة"><span id="whereText"></span><span class="wp" id="wherePage"></span></button>
+    <div class="nav">
+      <button class="iconbtn" id="prevBtn" aria-label="الصفحة السابقة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <input type="range" id="slider" min="1" max="604" step="1" value="1" dir="rtl" aria-label="الصفحة">
+      <button class="iconbtn" id="nextBtn" aria-label="الصفحة التالية"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+    </div>
+  </footer>
+  <div class="findbar" id="findBar" role="toolbar" aria-label="نتائج البحث" hidden>
+    <button class="iconbtn" id="findPrev" aria-label="النتيجة السابقة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <span class="fn" id="findN"></span>
+    <button class="iconbtn" id="findNext" aria-label="النتيجة التالية"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <button class="fq" id="findQ" aria-label="العودة إلى نتائج البحث"></button>
+    <button class="iconbtn" id="findClose" aria-label="إغلاق البحث"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="selbar" id="selBar" hidden>
+    <button data-act="copy">نسخ</button>
+    <button data-act="copyAya">نسخ الآية</button>
+    <button data-act="info" hidden>الفرق عن حفص</button>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <div id="loading"><div><div class="spinner"></div><span id="loadingText">جارٍ تحميل المصحف…</span></div></div>
+</div>
+
+<div class="scrim" id="indexScrim" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="indexTitle">
+    <div class="sheet-h">
+      <h2 id="indexTitle">الفهرس</h2>
+      <button class="iconbtn" data-close aria-label="إغلاق"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabSuras" aria-selected="true">السور</button>
+      <button role="tab" id="tabJuz" aria-selected="false">الأجزاء</button>
+      <button role="tab" id="tabHizb" aria-selected="false">الأحزاب</button>
+    </div>
+    <form class="goto" id="gotoForm">
+      <input id="gotoInput" type="number" inputmode="numeric" min="1" max="604" placeholder="رقم الصفحة (١–٦٠٤)" aria-label="رقم الصفحة">
+      <button type="submit">انتقال</button>
+    </form>
+    <div class="list" id="indexList"></div>
+    <div class="settings">
+      <label>المظهر
+        <span class="opt" id="themeOpt">
+          <button data-theme-set="auto" aria-pressed="true">تلقائي</button>
+          <button data-theme-set="light" aria-pressed="false">فاتح</button>
+          <button data-theme-set="dark" aria-pressed="false">داكن</button>
+        </span>
+      </label>
+      <label>الخط
+        <span class="opt" id="weightOpt">
+          <button data-weight="2" aria-pressed="true">عريض</button>
+          <button data-weight="1" aria-pressed="false">متوسط</button>
+          <button data-weight="0" aria-pressed="false">رفيع</button>
+        </span>
+      </label>
+      <button class="linkbtn" id="legendBtn">علامات الضبط والألوان</button>
+    </div>
+    <div class="about" id="about"></div>
+  </div>
+</div>
+
+<div class="scrim" id="infoScrim" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="infoRef">
+    <div class="info">
+      <div class="ref" id="infoRef"></div>
+      <div class="cmp" id="infoCmp" hidden>
+        <span class="lbl" id="infoRLabel">ورش</span><canvas id="infoCanvas" aria-hidden="true"></canvas>
+        <span class="lbl">حفص</span><span class="w hafsfont" id="infoHafs"></span>
+      </div>
+      <div class="notes" id="infoSigns"></div>
+      <div class="note" id="infoNote"></div>
+      <div class="btnrow"><button class="btn primary" id="infoCopy">نسخ الآية</button><button class="btn" data-close>إغلاق</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="searchScrim" hidden>
+  <div class="sheet tall" role="dialog" aria-modal="true" aria-label="البحث">
+    <form class="sbox" id="searchForm" role="search">
+      <input id="searchInput" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false"
+        placeholder="ابحث بكلمة أو جزء منها أو بآية" aria-label="نص البحث">
+      <button type="button" class="iconbtn" data-close aria-label="إغلاق"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </form>
+    <div class="chips" id="searchModes" role="group" aria-label="طريقة البحث">
+      <button data-mode="part" aria-pressed="true">جزء من كلمة</button>
+      <button data-mode="word" aria-pressed="false">كلمة كاملة</button>
+      <button data-mode="aya" aria-pressed="false">آية أو عبارة</button>
+    </div>
+    <div class="sstat" id="searchStat" role="status" aria-live="polite"></div>
+    <div class="results" id="searchResults"></div>
+  </div>
+</div>
+
+<div class="scrim" id="legendScrim" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="legendTitle">
+    <div class="sheet-h">
+      <h2 id="legendTitle">علامات الضبط والألوان</h2>
+      <button class="iconbtn" data-close aria-label="إغلاق"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="legend" id="legendList"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+const DIG = "٠١٢٣٤٥٦٧٨٩";
+const ar = n => String(n).replace(/\d/g, d => DIG[d]);
+const ayat = n => n === 1 ? "آية واحدة" : n === 2 ? "آيتان" : (n % 100 >= 3 && n % 100 <= 10) ? ar(n) + " آيات" : ar(n) + " آية";
+const RIW = {
+  warsh: {short: "ورش", long: "رواية ورش عن نافع من طريق الأزرق"},
+  shubah: {short: "شعبة", long: "رواية شعبة عن عاصم"}
+};
+const LAST_PAGE = 604;
+// extra stroke round each glyph, font units (2048 per em): thin, medium, bold (the default:
+// the weight of the printed Madinah mushaf and of the Tarteel app's pages)
+const WEIGHTS = [0, 56, 112];
+const TAP_WAIT = 260;       // ms to wait for a second tap before a single tap counts
+
+/* ---------- storage (optional) ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("mushaf." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("mushaf." + k, JSON.stringify(v)); } catch (e) {} }
+};
+const state = {
+  riwaya: store.get("riwaya", "warsh") === "shubah" ? "shubah" : "warsh",
+  page: Math.min(LAST_PAGE, Math.max(1, store.get("page", 1) | 0)),
+  diff: store.get("diff", true) !== false,
+  theme: store.get("theme", "auto"),
+  weight: [0, 1, 2].includes(store.get("weight", 2)) ? store.get("weight", 2) : 2,
+  bars: false
+};
+const lineW = () => WEIGHTS[state.weight] || 0;
+
+/* ---------- Android app (when present) ---------- */
+const root = document.documentElement;
+const bridge = window.AndroidBridge || null;
+function call(name, ...args) {
+  try { return bridge && typeof bridge[name] === "function" ? bridge[name](...args) : undefined; } catch (_) { return undefined; }
+}
+function setInsets(top, bottom) {
+  root.style.setProperty("--inset-top", Math.max(0, +top || 0) + "px");
+  root.style.setProperty("--inset-bottom", Math.max(0, +bottom || 0) + "px");
+  if (pager && pager.D) relayout();
+}
+window.__mushafInsets = setInsets;
+
+/* ---------- theme ---------- */
+let themeByApp = false;
+function applyTheme() {
+  let dark;
+  if (state.theme === "light" || state.theme === "dark") {
+    root.setAttribute("data-theme", state.theme);
+    dark = state.theme === "dark";
+  } else if (bridge) {
+    dark = !!call("isNight");
+    root.setAttribute("data-theme", dark ? "dark" : "light");
+  } else {
+    if (themeByApp) root.removeAttribute("data-theme");
+    const host = root.getAttribute("data-theme");
+    dark = host ? host === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  themeByApp = state.theme !== "auto" || !!bridge;
+  call("setDark", dark);
+  document.querySelectorAll("[data-theme-set]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.themeSet === state.theme)));
+  colours = null;
+  pager && pager.redrawAll();
+}
+let colours = null;
+function col() {
+  if (!colours) {
+    const cs = getComputedStyle(root);
+    const g = n => cs.getPropertyValue(n).trim();
+    colours = {paper: g("--paper"), ink: g("--ink"), diff: g("--diff"), accent: g("--accent"), frame: g("--frame"),
+      sura: g("--sura"), hl: g("--hl"), sel: g("--sel"), found: g("--found"), muted: g("--muted")};
+  }
+  return colours;
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (state.theme === "auto") applyTheme(); });
+window.__mushafSystemTheme = () => { if (state.theme === "auto") applyTheme(); };
+
+/* ---------- data ---------- */
+const cache = {};
+function loadData(key) {
+  if (!cache[key]) {
+    cache[key] = Promise.all([
+      fetch("data/" + key + ".json").then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch("data/" + key + (window.MUSHAF_B64 ? ".glyphs.txt" : ".bin")).then(r => {
+        if (!r.ok) throw new Error(r.status);
+        if (!window.MUSHAF_B64) return r.arrayBuffer();
+        return r.text().then(t => {               // same bytes, base64 (hosts that serve no binary files)
+          const b = atob(t.trim()), u = new Uint8Array(b.length);
+          for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+          return u.buffer;
+        });
+      })
+    ]).then(([meta, buf]) => {
+      const dv = new DataView(buf);
+      const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+      if (magic !== "MSHF") throw new Error("bad data");
+      const nt = dv.getUint32(8, true), nw = dv.getUint32(12, true), ng = dv.getUint32(16, true);
+      let o = 20;
+      const adv = new Int32Array(buf, o, nt); o += 4 * nt;
+      const start = new Uint32Array(buf, o, nt + 1); o += 4 * (nt + 1);
+      const tokOf = new Uint16Array(buf, o, nw); o += 2 * nw;
+      o = (o + 3) & ~3;
+      const gl = new Int16Array(buf, o, ng * 3);
+      const red = new Map();
+      for (const k in meta.red) red.set(+k, new Set(meta.red[k]));
+      const paths = new Map();
+      const path = gid => {
+        let p = paths.get(gid);
+        if (p === undefined) { const d = meta.paths[gid]; p = d ? new Path2D(d) : null; paths.set(gid, p); }
+        return p;
+      };
+      const ends = new Set();
+      for (let k = 1; k < meta.ayah_starts.length; k++) ends.add(meta.ayah_starts[k] - 1);
+      ends.add(nw - 1);
+      return {key, meta, adv, start, tokOf, gl, red, path, ends, words: null, layouts: new Map(),
+        nostroke: new Set(meta.nostroke || []), aya: new Set(meta.aya || [])};
+    });
+    cache[key].catch(() => { delete cache[key]; });
+  }
+  return cache[key];
+}
+function loadWords(D) {           // the Unicode text of every printed word form (for selecting and copying)
+  if (!D.wordsP) {
+    D.wordsP = fetch("data/" + D.key + ".words.txt").then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(t => { D.words = t.split("\n"); return D; });
+    D.wordsP.catch(() => { D.wordsP = null; });
+  }
+  return D.wordsP;
+}
+const wordText = (D, p) => D.words ? D.words[D.tokOf[p]] : "";
+
+/* ---------- layout ---------- */
+function layoutPage(D, pno, W, H) {
+  const lwU = lineW();
+  const k = pno + ":" + W + "x" + H + ":" + lwU;
+  const hit = D.layouts.get(k);
+  if (hit) return hit;
+  const m = D.meta, upem = m.upem, T = m.target / upem;
+  const lines = m.pages[pno - 1].lines;
+  const padX = Math.max(8, W * 0.024), padY = Math.max(4, H * 0.008);
+  const availW = W - 2 * padX, availH = H - 2 * padY;
+  const fs = Math.min(availW / T, availH / (15 * 1.95));
+  const s = fs / upem, tw = fs * T;
+  const lh = Math.min(availH / 15, fs * 2.75);
+  const top = padY + (availH - lh * 15) / 2;
+  const left = (W - tw) / 2;
+  const sp = m.space * s, ext = lwU * s;     // the stroke widens every word by ext
+  const opening = pno <= 2;
+  const off = opening ? lh * (15 - lines.length) / 2 : 0;
+  const out = [];
+  lines.forEach((ln, i) => {
+    const base = top + off + lh * i + lh * 0.63;
+    const L = {t: ln.t, base, s: ln.s, toks: []};
+    if (ln.t === "w" || ln.t === "bw") {
+      const n = ln.b - ln.a;
+      let nat = 0;
+      for (let p = ln.a; p < ln.b; p++) nat += D.adv[D.tokOf[p]] * s;
+      let gx = 1, gap = sp;
+      const centred = opening || ln.t === "bw" || n === 1;
+      if (!centred) {
+        const room = tw - sp * (n - 1), minGap = sp * 0.3 + ext;   // words never touch, however bold
+        gx = Math.min(n <= 6 ? 1.14 : 1.08, Math.max(0.85, room / nat));
+        gap = (tw - nat * gx) / (n - 1);
+        if (gap < minGap) { gx = (tw - minGap * (n - 1)) / nat; gap = minGap; }
+      }
+      const total = nat * gx + gap * (n - 1);
+      let xr = centred ? left + (tw + total) / 2 : left + tw;
+      for (let p = ln.a; p < ln.b; p++) {
+        const tid = D.tokOf[p], w = D.adv[tid] * s * gx;
+        L.toks.push({p, tid, x: xr - w, w, gx});
+        xr -= w + gap;
+      }
+    }
+    out.push(L);
+  });
+  const lay = {fs, s, tw, left, top: top + off, lh, n: lines.length, lines: out, W, H, opening};
+  D.layouts.set(k, lay);
+  return lay;
+}
+
+/* ---------- drawing ---------- */
+function drawToken(ctx, D, tid, x0, base, s, gx, redSet, c, dpr, bold) {
+  const a = D.start[tid], b = D.start[tid + 1], gl = D.gl;
+  let fill = null;
+  for (let k = a; k < b; k++) {
+    const gid = gl[3 * k], p = D.path(gid);
+    if (!p) continue;
+    const f = redSet && redSet.has(k - a) ? c.diff : c.ink;
+    if (f !== fill) { ctx.fillStyle = f; ctx.strokeStyle = f; fill = f; }
+    // the round dots of imala and taqlil are drawn without the bold stroke: their size and hole are the sign
+    const round = D.nostroke.has(gid);
+    ctx.setTransform(dpr * s * (round ? 1 : gx), 0, 0, -dpr * s, dpr * (x0 + gl[3 * k + 1] * s * gx), dpr * (base - gl[3 * k + 2] * s));
+    ctx.fill(p);
+    if (bold && !round) {
+      if (D.aya.has(gid)) { const w = ctx.lineWidth; ctx.lineWidth = w * 0.3; ctx.stroke(p); ctx.lineWidth = w; }   // the aya ring stays open, as in print
+      else ctx.stroke(p);
+    }
+  }
+}
+function drawRun(ctx, D, glyphs, x0, base, s, colour, dpr, bold) {
+  ctx.fillStyle = colour; ctx.strokeStyle = colour;
+  for (const g of glyphs) {
+    const p = D.path(g[0]);
+    if (!p) continue;
+    ctx.setTransform(dpr * s, 0, 0, -dpr * s, dpr * (x0 + g[1] * s), dpr * (base - g[2] * s));
+    ctx.fill(p);
+    if (bold) ctx.stroke(p);
+  }
+}
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+}
+function star8(ctx, cx, cy, r) {             // two squares, the eight-pointed star of the ornament
+  for (const rot of [0, Math.PI / 4]) {
+    ctx.beginPath();
+    for (let k = 0; k < 4; k++) {
+      const a = rot + Math.PI / 4 + k * Math.PI / 2, px = cx + r * Math.cos(a), py = cy + r * Math.sin(a);
+      k ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.closePath(); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.36, 0, 2 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.11, 0, 2 * Math.PI); ctx.fill();
+}
+function cartouche(ctx, x, y, w, h) {
+  const r = h / 2;
+  ctx.beginPath();
+  ctx.moveTo(x, y + r);
+  ctx.bezierCurveTo(x + r * 0.35, y + r * 0.2, x + r * 0.6, y, x + r * 1.15, y);
+  ctx.lineTo(x + w - r * 1.15, y);
+  ctx.bezierCurveTo(x + w - r * 0.6, y, x + w - r * 0.35, y + r * 0.2, x + w, y + r);
+  ctx.bezierCurveTo(x + w - r * 0.35, y + h - r * 0.2, x + w - r * 0.6, y + h, x + w - r * 1.15, y + h);
+  ctx.lineTo(x + r * 1.15, y + h);
+  ctx.bezierCurveTo(x + r * 0.6, y + h, x + r * 0.35, y + h - r * 0.2, x, y + r);
+  ctx.closePath();
+}
+function suraFrame(ctx, D, L, ln, c, dpr, lw) {
+  // the sura's name in an ornamented frame drawn in the ink's colour, as the Tarteel app shows it
+  const h = L.lh * 0.84, x = L.left + 1, w = L.tw - 2, y = ln.base - L.lh * 0.63 + (L.lh - h) / 2;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.strokeStyle = c.frame; ctx.fillStyle = c.frame;
+  const t1 = Math.max(1.3, h * 0.045), t2 = Math.max(0.8, h * 0.022), i1 = h * 0.13, my = y + h / 2;
+  ctx.lineWidth = t1; rrect(ctx, x + t1 / 2, y + t1 / 2, w - t1, h - t1, h * 0.16); ctx.stroke();
+  ctx.lineWidth = t2; rrect(ctx, x + i1, y + i1, w - 2 * i1, h - 2 * i1, h * 0.07); ctx.stroke();
+  for (const [px, py] of [[x + i1, y + i1], [x + w - i1, y + i1], [x + i1, y + h - i1], [x + w - i1, y + h - i1]]) {
+    ctx.beginPath(); ctx.arc(px, py, h * 0.05, 0, 2 * Math.PI); ctx.fill();
+  }
+  // end medallions: an eight-pointed star in a ring
+  const mr = h * 0.22, m1 = x + i1 + h * 0.46, m2 = x + w - i1 - h * 0.46;
+  ctx.lineWidth = Math.max(0.9, h * 0.03);
+  for (const m of [m1, m2]) {
+    star8(ctx, m, my, mr);
+    ctx.beginPath(); ctx.arc(m, my, mr * 1.3, 0, 2 * Math.PI); ctx.stroke();
+  }
+  // the name in a cartouche
+  const ch = h * 0.64, ex = D.meta.extra["sura" + ln.s];
+  const k = Math.min(0.82 * L.s, ch / (1.45 * D.meta.upem)), nameW = ex.adv * k;
+  const cw = Math.max(nameW + ch * 2, w * 0.42), cx = x + (w - cw) / 2, cy = y + (h - ch) / 2;
+  // between the medallions and the cartouche: a band of overlapping circles, a dot in each
+  const rc = h * 0.15, step = rc * 1.15;
+  ctx.lineWidth = Math.max(0.8, h * 0.02);
+  for (const [a, b] of [[m1 + mr * 1.55, cx - h * 0.1], [cx + cw + h * 0.1, m2 - mr * 1.55]]) {
+    const n = Math.floor((b - a - 2 * rc) / step) + 1;
+    if (n < 1) continue;
+    const st = a + ((b - a) - (n - 1) * step) / 2;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(a, my - rc * 1.2, b - a, rc * 2.4); ctx.clip();
+    for (let q = 0; q < n; q++) {
+      const px = st + q * step;
+      ctx.beginPath(); ctx.arc(px, my, rc, 0, 2 * Math.PI); ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, my, rc * 0.22, 0, 2 * Math.PI); ctx.fill();
+    }
+    ctx.restore();
+    // rules above and below the band
+    ctx.beginPath(); ctx.moveTo(a, my - rc * 1.35); ctx.lineTo(b, my - rc * 1.35); ctx.moveTo(a, my + rc * 1.35); ctx.lineTo(b, my + rc * 1.35); ctx.stroke();
+  }
+  cartouche(ctx, cx, cy, cw, ch);
+  ctx.fillStyle = c.paper; ctx.fill();
+  ctx.lineWidth = t1 * 0.85; ctx.stroke();
+  const ci = ch * 0.13;
+  cartouche(ctx, cx + ci, cy + ci, cw - 2 * ci, ch - 2 * ci);
+  ctx.lineWidth = t2; ctx.stroke();
+  ctx.lineWidth = lw;
+  drawRun(ctx, D, ex.g, x + (w - nameW) / 2, cy + ch / 2 + 0.3 * k * D.meta.upem, k, c.sura, dpr, lw > 0);
+}
+function drawPage(canvas, D, pno, opts) {
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (!W || !H) return null;
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  }
+  const L = layoutPage(D, pno, W, H), c = col(), ctx = canvas.getContext("2d");
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = c.paper; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // the aya in focus, and the selected words: one band per line under the words
+  for (const [range, colour] of [[opts.hl, c.hl], [opts.sel, c.sel]]) {
+    if (!range) continue;
+    ctx.fillStyle = colour;
+    for (const ln of L.lines) {
+      let x0 = Infinity, x1 = -Infinity;
+      for (const t of ln.toks) if (t.p >= range[0] && t.p <= range[1]) { x0 = Math.min(x0, t.x); x1 = Math.max(x1, t.x + t.w); }
+      if (x1 > x0) {
+        const pad = L.fs * 0.18;
+        rrect(ctx, x0 - pad, ln.base - L.lh * 0.6, x1 - x0 + 2 * pad, L.lh * 0.88, Math.min(8, L.lh * 0.25));
+        ctx.fill();
+      }
+    }
+  }
+  // the words a search found
+  if (opts.marks && opts.marks.size) {
+    ctx.fillStyle = c.found;
+    for (const ln of L.lines) for (const t of ln.toks) if (opts.marks.has(t.p)) {
+      const pad = L.fs * 0.1;
+      rrect(ctx, t.x - pad, ln.base - L.lh * 0.56, t.w + 2 * pad, L.lh * 0.8, Math.min(7, L.lh * 0.2));
+      ctx.fill();
+    }
+  }
+  const s = L.s, lw = lineW();
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
+  for (const ln of L.lines) {
+    if (ln.t === "h") {
+      suraFrame(ctx, D, L, ln, c, dpr, lw);
+    } else if (ln.t === "b") {
+      const ex = D.meta.extra.basmala;
+      ctx.lineWidth = lw;
+      drawRun(ctx, D, ex.g, L.left + (L.tw - ex.adv * s) / 2, ln.base, s, c.ink, dpr, lw > 0);
+    } else {
+      ctx.lineWidth = lw;
+      for (const t of ln.toks) drawToken(ctx, D, t.tid, t.x, ln.base, s, t.gx, opts.diff ? D.red.get(t.p) : null, c, dpr, lw > 0);
+    }
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  return L;
+}
+
+/* ---------- text layer: transparent words over the drawn ones ---------- */
+const measure = document.createElement("canvas").getContext("2d");
+function buildTextLayer(sl, D) {
+  const tl = sl.tl, L = sl.layout;
+  tl.textContent = "";
+  if (!L || !D.words) return;
+  const fpx = Math.max(8, L.fs * 0.78), font = fpx.toFixed(2) + "px " + getComputedStyle(tl).fontFamily;
+  measure.font = font;
+  const frag = document.createDocumentFragment(), lh = L.lh * 0.9;
+  for (const ln of L.lines) {
+    if (!ln.toks.length) continue;
+    const top = ln.base - L.lh * 0.6;
+    ln.toks.forEach((t, i) => {
+      const txt = wordText(D, t.p);
+      if (!txt) return;
+      const sp = document.createElement("span");
+      const last = i === ln.toks.length - 1;
+      // a trailing space keeps words apart when the selection is pasted as plain text
+      sp.textContent = !last || D.ends.has(t.p) ? txt + " " : txt;
+      const x0 = last ? t.x : ln.toks[i + 1].x + ln.toks[i + 1].w, w = t.x + t.w - x0;
+      const nat = Math.max(1, measure.measureText(sp.textContent).width);
+      sp.dataset.w = t.p;
+      sp.style.cssText = "left:" + x0.toFixed(1) + "px;top:" + top.toFixed(1) + "px;height:" + lh.toFixed(1) +
+        "px;line-height:" + lh.toFixed(1) + "px;font-size:" + fpx.toFixed(2) + "px;transform:scaleX(" + (w / nat).toFixed(4) + ")";
+      frag.appendChild(sp);
+    });
+  }
+  tl.appendChild(frag);
+}
+
+/* ---------- aya lookup ---------- */
+function ayaOf(D, pos) {
+  const st = D.meta.ayah_starts;
+  let lo = 0, hi = st.length - 1, k = -1;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (st[mid] <= pos) { k = mid; lo = mid + 1; } else hi = mid - 1; }
+  if (k < 0) return {basmala: true, range: [0, st[0] - 1], sura: 1};
+  const fa = D.meta.surah_first_ayah;
+  let s = 0;
+  for (let i = 0; i < fa.length; i++) if (fa[i] <= k) s = i;
+  const end = k + 1 < st.length ? st[k + 1] - 1 : D.tokOf.length - 1;
+  return {sura: s + 1, aya: k - fa[s] + 1, range: [st[k], end]};
+}
+
+/* the part of the hizb a page is in, as the Tarteel app shows it: a filled share of a circle */
+function pie(part, per) {
+  const f = Math.max(0, Math.min(1, (part || 0) / (per || 4)));
+  const a = 2 * Math.PI * f, x = 8 + 6 * Math.sin(a), y = 8 - 6 * Math.cos(a);
+  const label = per === 8 ? "الثمن " + ar(part) + " من " + ar(8) : "الربع " + ar(part) + " من " + ar(4);
+  const fill = f >= 1 ? '<circle cx="8" cy="8" r="6" fill="currentColor"/>'
+    : '<path d="M8 8V2A6 6 0 ' + (f > 0.5 ? 1 : 0) + ' 1 ' + x.toFixed(2) + " " + y.toFixed(2) + 'Z" fill="currentColor"/>';
+  return '<svg class="pie" viewBox="0 0 16 16" role="img" aria-label="' + label + '"><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.3"/>' + fill + "</svg>";
+}
+
+/* ---------- pager ---------- */
+const viewport = document.getElementById("viewport");
+let pager = null;
+function makeSlot() {
+  const el = document.createElement("section");
+  el.className = "slot";
+  el.innerHTML = '<div class="phead"><span class="pj"></span><span class="pr"></span><span class="ps"></span></div>' +
+    '<div class="pbox"><canvas role="img"></canvas><div class="tl"></div></div>' +
+    '<div class="pfoot"><span class="pn"></span></div>';
+  viewport.appendChild(el);
+  return {el, canvas: el.querySelector("canvas"), tl: el.querySelector(".tl"), page: 0, key: "", hl: null, sel: null, marks: null, layout: null};
+}
+class Pager {
+  constructor() {
+    this.slots = [makeSlot(), makeSlot(), makeSlot()];   // [prev, cur, next]
+    this.dx = 0; this.anim = false;
+    this.bind();
+  }
+  get width() { return viewport.clientWidth; }
+  place(animate) {
+    const W = this.width;
+    const off = [W, 0, -W];                    // next page to the LEFT (Arabic page order)
+    this.slots.forEach((sl, i) => {
+      sl.el.style.transition = animate ? "transform .26s cubic-bezier(.2,.7,.2,1)" : "none";
+      sl.el.style.transform = "translate3d(" + (off[i] + this.dx) + "px,0,0)";
+      sl.el.style.visibility = (sl.page >= 1 && sl.page <= LAST_PAGE) ? "visible" : "hidden";
+      sl.el.setAttribute("aria-hidden", String(i !== 1));
+    });
+  }
+  fill(D) {
+    const pages = [state.page - 1, state.page, state.page + 1];
+    this.slots.forEach((sl, i) => this.render(sl, D, pages[i]));
+    this.place(false);
+    updateBars();
+  }
+  render(sl, D, pno, force) {
+    if (pno < 1 || pno > LAST_PAGE) { sl.page = pno; sl.tl.textContent = ""; return; }
+    const same = sl.page === pno && sl.key === D.key && !force;
+    sl.page = pno; sl.key = D.key;
+    const pg = D.meta.pages[pno - 1];
+    const sura = D.meta.suras[pg.sura - 1];
+    sl.el.querySelector(".ps").textContent = sura.name;
+    sl.el.querySelector(".pr").textContent = RIW[D.key].short;
+    sl.el.querySelector(".pj").innerHTML = "جزء " + ar(pg.juz) + (pg.hizb ? pie(pg.part, D.meta.per_hizb) + "حزب " + ar(pg.hizb) : "");
+    sl.el.querySelector(".pn").textContent = ar(pno);
+    sl.canvas.setAttribute("aria-label", "صفحة " + ar(pno) + "، سورة " + sura.name + "، " + RIW[D.key].long);
+    if (same && sl.layout && sl.layout.W === sl.canvas.clientWidth && sl.layout.H === sl.canvas.clientHeight && sl.tlFor === sl.layout) return;
+    sl.layout = drawPage(sl.canvas, D, pno, {diff: state.diff, hl: sl.hl, sel: sl.sel, marks: sl.marks});
+    if (sl.tlFor !== sl.layout || force !== "hl") { buildTextLayer(sl, D); sl.tlFor = D.words ? sl.layout : null; }
+  }
+  redrawAll() {
+    if (!this.D) return;
+    this.slots.forEach(sl => { if (sl.page >= 1 && sl.page <= LAST_PAGE) sl.layout = drawPage(sl.canvas, this.D, sl.page, {diff: state.diff, hl: sl.hl, sel: sl.sel, marks: sl.marks}); });
+  }
+  textLayers() {
+    if (!this.D) return;
+    this.slots.forEach(sl => { if (sl.page >= 1 && sl.page <= LAST_PAGE && sl.layout) { buildTextLayer(sl, this.D); sl.tlFor = sl.layout; } });
+  }
+  show(D) { this.D = D; this.slots.forEach(sl => { sl.hl = null; sl.marks = null; }); this.fill(D); }
+  go(pno, animateDir, focus) {
+    pno = Math.min(LAST_PAGE, Math.max(1, pno));
+    if (!this.D) { state.page = pno; return; }
+    if (animateDir && Math.abs(pno - state.page) === 1) return this.turn(pno > state.page ? 1 : -1);
+    clearSelection();
+    state.page = pno; store.set("page", pno);
+    this.slots.forEach(sl => { sl.hl = null; sl.marks = null; });
+    if (focus) { this.slots[1].hl = focus.hl || null; this.slots[1].marks = focus.marks || null; }
+    this.fill(this.D);
+  }
+  turn(dir) {        // dir 1 = next page (comes from the left)
+    if (this.anim) return;
+    const target = state.page + dir;
+    if (target < 1 || target > LAST_PAGE) { this.dx = 0; this.place(true); return; }
+    clearSelection();
+    this.anim = true;
+    this.dx = dir * this.width;
+    this.place(true);
+    const done = () => {
+      const [p, c, n] = this.slots;
+      this.slots = dir > 0 ? [c, n, p] : [n, p, c];
+      state.page = target; store.set("page", target);
+      this.dx = 0;
+      const recycled = dir > 0 ? this.slots[2] : this.slots[0];
+      recycled.hl = null; recycled.marks = null;
+      this.render(recycled, this.D, dir > 0 ? target + 1 : target - 1);
+      if (this.slots[1].hl || this.slots[1].marks) { this.slots[1].hl = null; this.slots[1].marks = null; this.render(this.slots[1], this.D, target, "hl"); }
+      this.place(false);
+      this.anim = false;
+      updateBars();
+    };
+    setTimeout(done, 270);
+  }
+  bind() {
+    let sx = 0, sy = 0, st = 0, drag = false, id = null, moved = false, selAtDown = false, mouse = false;
+    let lastTap = null, tapTimer = 0;
+    viewport.addEventListener("pointerdown", e => {
+      if (this.anim || e.button > 0) return;
+      id = e.pointerId; sx = e.clientX; sy = e.clientY; st = performance.now(); drag = false; moved = false;
+      mouse = e.pointerType === "mouse";
+      selAtDown = hasSelection();
+      toastEl.hidden = true;                          // a touch on the page dismisses a message
+    });
+    viewport.addEventListener("pointermove", e => {
+      if (e.pointerId !== id) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) moved = true;
+      if (mouse || selAtDown) return;                 // a mouse drag selects text; it does not turn pages
+      if (!drag && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        drag = true; clearSelection();
+        try { viewport.setPointerCapture(id); } catch (_) {}
+      }
+      if (drag) {
+        let d = dx;
+        if ((d > 0 && state.page >= LAST_PAGE) || (d < 0 && state.page <= 1)) d *= 0.25;
+        this.dx = d; this.place(false);
+      }
+    });
+    const end = e => {
+      if (e.pointerId !== id) return;
+      id = null;
+      const dt = performance.now() - st;
+      if (drag) {
+        const v = this.dx / Math.max(1, dt);
+        if (this.dx > this.width * 0.22 || v > 0.45) this.turn(1);
+        else if (this.dx < -this.width * 0.22 || v < -0.45) this.turn(-1);
+        else { this.dx = 0; this.place(true); }
+      } else if (!moved && dt < 450 && !selAtDown && !hasSelection()) {
+        const now = performance.now();
+        if (lastTap && now - lastTap.t < TAP_WAIT + 120 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 36) {
+          clearTimeout(tapTimer); lastTap = null;
+          this.doubleTap(e.clientX, e.clientY);
+        } else {
+          lastTap = {t: now, x: e.clientX, y: e.clientY};
+          clearTimeout(tapTimer);
+          tapTimer = setTimeout(() => { lastTap = null; setBars(!state.bars); }, TAP_WAIT);
+        }
+      }
+      drag = false;
+    };
+    viewport.addEventListener("pointerup", end);
+    viewport.addEventListener("pointercancel", e => {
+      if (e.pointerId !== id) return;
+      id = null;
+      if (drag) { drag = false; this.dx = 0; this.place(true); }
+    });
+    window.addEventListener("keydown", e => {
+      if (document.querySelector(".scrim:not([hidden])")) { if (e.key === "Escape") closeSheets(); return; }
+      if (e.target && e.target.tagName === "INPUT") return;
+      if (e.key === "ArrowLeft") this.turn(1);
+      else if (e.key === "ArrowRight") this.turn(-1);
+      else if (e.key === "Escape" && state.bars) setBars(false);
+      else if (e.key === "Enter" || e.key === " ") { if (!e.target.closest || !e.target.closest("button")) { e.preventDefault(); setBars(!state.bars); } }
+    });
+  }
+  hit(x, y) {                                 // the word at a screen point, if any
+    const sl = this.slots[1];
+    if (!this.D || !sl.layout) return null;
+    const r = sl.canvas.getBoundingClientRect(), L = sl.layout;
+    x -= r.left; y -= r.top;
+    let found = null, best = Infinity;
+    for (const ln of L.lines) {
+      if (y < ln.base - L.lh * 0.66 || y > ln.base + L.lh * 0.36) continue;
+      for (const t of ln.toks) {
+        const d = x < t.x ? t.x - x : (x > t.x + t.w ? x - t.x - t.w : 0);
+        if (d < best) { best = d; found = t; }
+      }
+    }
+    return found && best <= L.fs * 1.2 ? found : null;
+  }
+  focusAya(range) {
+    const sl = this.slots[1];
+    sl.hl = range;
+    this.render(sl, this.D, sl.page, "hl");
+  }
+  doubleTap(x, y) {
+    const t = this.hit(x, y);
+    if (!t) return;
+    const a = ayaOf(this.D, t.p);
+    this.focusAya(a.range);
+    openInfo(this.D, t.p, a);
+  }
+}
+function relayout() {
+  if (!pager || !pager.D) return;
+  pager.D.layouts.clear();
+  pager.fill(pager.D);
+}
+
+/* ---------- bars ---------- */
+const topBar = document.getElementById("topBar"), bottomBar = document.getElementById("bottomBar");
+const slider = document.getElementById("slider");
+function setBars(v) {
+  state.bars = !!v;
+  document.body.classList.toggle("bars", state.bars);
+  topBar.setAttribute("aria-hidden", String(!state.bars));
+  bottomBar.setAttribute("aria-hidden", String(!state.bars));
+  if (state.bars) {
+    updateBars();
+    requestAnimationFrame(() => root.style.setProperty("--bbh", bottomBar.offsetHeight + "px"));
+  }
+  call("setBars", state.bars);
+}
+function whereLabel(D, pno) {
+  const pg = D.meta.pages[pno - 1];
+  return "سورة " + D.meta.suras[pg.sura - 1].name + " · الجزء " + ar(pg.juz) + (pg.hizb ? " · الحزب " + ar(pg.hizb) : "");
+}
+function updateBars() {
+  const D = pager && pager.D;
+  if (!D) return;
+  document.getElementById("whereText").textContent = whereLabel(D, state.page);
+  document.getElementById("wherePage").textContent = "ص " + ar(state.page) + " / " + ar(LAST_PAGE);
+  slider.value = String(state.page);
+}
+slider.addEventListener("input", () => {
+  const D = pager && pager.D, p = +slider.value;
+  if (!D) return;
+  document.getElementById("whereText").textContent = whereLabel(D, p);
+  document.getElementById("wherePage").textContent = "ص " + ar(p) + " / " + ar(LAST_PAGE);
+});
+slider.addEventListener("change", () => pager.go(+slider.value));
+document.getElementById("prevBtn").addEventListener("click", () => pager.turn(-1));
+document.getElementById("nextBtn").addEventListener("click", () => pager.turn(1));
+document.getElementById("whereBtn").addEventListener("click", () => openIndex(true));
+
+/* ---------- selection and copying ---------- */
+const selBar = document.getElementById("selBar"), toastEl = document.getElementById("toast");
+let selWords = null;                          // word positions of the last selection on the page
+function hasSelection() {
+  const s = window.getSelection && window.getSelection();
+  return !!(s && !s.isCollapsed && s.rangeCount);
+}
+function clearSelection() {
+  const s = window.getSelection && window.getSelection();
+  if (s && !s.isCollapsed) { try { s.removeAllRanges(); } catch (_) {} }
+  selWords = null; selBar.hidden = true;
+  showSel(null);
+}
+function showSel(ws) {                         // draw the selected words on the current page
+  if (!pager || !pager.D) return;
+  const sl = pager.slots[1], r = ws ? [ws[0], ws[ws.length - 1]] : null;
+  const same = (!r && !sl.sel) || (r && sl.sel && r[0] === sl.sel[0] && r[1] === sl.sel[1]);
+  if (same) return;
+  pager.slots.forEach(o => { if (o !== sl && o.sel) { o.sel = null; pager.render(o, pager.D, o.page, "hl"); } });
+  sl.sel = r;
+  pager.render(sl, pager.D, sl.page, "hl");
+}
+function selectedWords() {
+  const s = window.getSelection && window.getSelection();
+  if (!s || s.isCollapsed || !s.rangeCount || !pager || !pager.D) return null;
+  const out = [];
+  for (const sp of pager.slots[1].tl.children) if (s.containsNode(sp, true)) out.push(+sp.dataset.w);
+  return out.length ? out : null;
+}
+function textOf(D, words) {
+  let t = "";
+  for (const p of words) {
+    t += (t ? " " : "") + wordText(D, p);
+    if (D.ends.has(p)) { const a = ayaOf(D, p); if (!a.basmala) t += " ﴿" + ar(a.aya) + "﴾"; }
+  }
+  return t;
+}
+function ayaText(D, a) {
+  const ws = [];
+  for (let p = a.range[0]; p <= a.range[1]; p++) ws.push(wordText(D, p));
+  const name = D.meta.suras[a.sura - 1].name;
+  return "﴿" + ws.join(" ") + "﴾ [" + (a.basmala ? "البسملة، سورة الفاتحة" : "سورة " + name + ": " + ar(a.aya)) + "، " + RIW[D.key].long + "]";
+}
+let toastTimer = 0;
+function toast(msg, ms) {
+  toastEl.textContent = msg; toastEl.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastEl.hidden = true; }, ms || 1800);
+}
+function copyText(text) {
+  if (!text) return;
+  const ok = () => toast("نُسخ النص");
+  if (bridge && typeof bridge.copy === "function") { call("copy", text); ok(); return; }
+  const fallback = () => {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly", ""); ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+    document.body.appendChild(ta); ta.select();
+    let done = false;
+    try { done = document.execCommand("copy"); } catch (_) {}
+    ta.remove();
+    done ? ok() : toast("تعذّر النسخ؛ حدّد النص بالضغط المطوّل ثم انسخه.", 3000);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, fallback);
+  else fallback();
+}
+document.addEventListener("copy", e => {
+  const D = pager && pager.D, ws = selectedWords();
+  if (!D || !ws || !D.words || !e.clipboardData) return;
+  e.clipboardData.setData("text/plain", textOf(D, ws));
+  e.preventDefault();
+});
+let selRaf = 0;
+document.addEventListener("selectionchange", () => {
+  cancelAnimationFrame(selRaf);
+  selRaf = requestAnimationFrame(() => {
+    const ws = selectedWords();
+    if (ws) {
+      selWords = ws;
+      const D = pager.D;
+      selBar.querySelector('[data-act="info"]').hidden = !ws.some(p => D.red.has(p) && D.meta.hafs[p]);
+      selBar.hidden = false;
+      showSel(ws);
+    } else if (!hasSelection()) {
+      selBar.hidden = true;
+      showSel(null);
+    }
+  });
+});
+selBar.addEventListener("pointerdown", e => e.preventDefault());   // keep the selection while tapping
+selBar.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"), D = pager && pager.D;
+  if (!b || !D || !selWords) return;
+  const ws = selWords;
+  if (b.dataset.act === "copy") copyText(textOf(D, ws));
+  else if (b.dataset.act === "copyAya") copyText(ayaText(D, ayaOf(D, ws[0])));
+  else if (b.dataset.act === "info") {
+    const p = ws.find(q => D.red.has(q) && D.meta.hafs[q]);
+    const a = ayaOf(D, p);
+    clearSelection();
+    pager.focusAya(a.range);
+    openInfo(D, p, a);
+    return;
+  }
+  clearSelection();
+});
+
+/* ---------- sheets ---------- */
+const indexScrim = document.getElementById("indexScrim"), infoScrim = document.getElementById("infoScrim");
+const searchScrim = document.getElementById("searchScrim"), legendScrim = document.getElementById("legendScrim");
+const SCRIMS = [indexScrim, infoScrim, searchScrim, legendScrim];
+let sheetOpen = false;
+const useHistory = !!window.MUSHAF_STANDALONE;   // Android back button closes a sheet
+let openedAt = 0;
+function openSheet(el) {
+  clearSelection();
+  SCRIMS.forEach(o => { if (o !== el) o.hidden = true; });
+  el.hidden = false;
+  openedAt = performance.now();
+  if (useHistory && !sheetOpen) { try { history.pushState({sheet: 1}, ""); } catch (_) {} }
+  sheetOpen = true;
+}
+let ignorePop = 0;
+function popHistory() { ignorePop++; try { history.back(); } catch (_) { ignorePop--; } }
+function closeSheets(fromPop) {
+  const was = !infoScrim.hidden;
+  SCRIMS.forEach(o => { o.hidden = true; });
+  if (useHistory && sheetOpen && !fromPop) { sheetOpen = false; popHistory(); }
+  sheetOpen = false;
+  const sl = pager && pager.slots[1];
+  if (was && sl && sl.hl) { sl.hl = null; pager.render(sl, pager.D, sl.page, "hl"); }
+}
+window.addEventListener("popstate", () => {
+  if (ignorePop) { ignorePop--; return; }          // our own history.back()
+  if (sheetOpen) closeSheets(true);
+  else if (findPushed) closeFind(true);
+});
+SCRIMS.forEach(sc => sc.addEventListener("click", e => {
+  if (performance.now() - openedAt < 450) return;      // the click that follows the opening tap
+  if (e.target === sc || e.target.closest("[data-close]")) closeSheets();
+}));
+
+let indexTab = "suras";
+function renderIndex() {
+  const list = document.getElementById("indexList");
+  const D = pager && pager.D;
+  if (!D) { list.innerHTML = ""; return; }
+  const m = D.meta;
+  const curSura = m.pages[state.page - 1].sura, curJuz = m.pages[state.page - 1].juz;
+  let html = "";
+  if (indexTab === "suras") {
+    for (const s of m.suras) {
+      html += '<button class="row' + (s.n === curSura ? " cur" : "") + '" data-page="' + s.page + '"><span class="n">' + ar(s.n) +
+        '</span><span>سورة ' + s.name + '<span class="meta">' + (s.type === "madani" ? "مدنية" : "مكية") + " · " + ayat(s.ayat) +
+        '</span></span><span class="pg">ص ' + ar(s.page) + '</span></button>';
+    }
+  } else if (indexTab === "juz") {
+    for (const j of m.juz) {
+      const s = m.suras[m.pages[j.page - 1].sura - 1];
+      html += '<button class="row' + (j.n === curJuz ? " cur" : "") + '" data-page="' + j.page + '"><span class="n">' + ar(j.n) +
+        '</span><span>الجزء ' + ar(j.n) + '<span class="meta">يبدأ في سورة ' + s.name + ' · الحزبان ' + ar(2 * j.n - 1) + ' و' + ar(2 * j.n) +
+        '</span></span><span class="pg">ص ' + ar(j.page) + '</span></button>';
+    }
+  } else {
+    const curHizb = m.pages[state.page - 1].hizb;
+    (m.hizb || []).forEach((pg, i) => {
+      const s = m.suras[m.pages[pg - 1].sura - 1];
+      html += '<button class="row' + (i + 1 === curHizb ? " cur" : "") + '" data-page="' + pg + '"><span class="n">' + ar(i + 1) +
+        '</span><span>الحزب ' + ar(i + 1) + '<span class="meta">الجزء ' + ar(Math.ceil((i + 1) / 2)) + ' · سورة ' + s.name +
+        '</span></span><span class="pg">ص ' + ar(pg) + '</span></button>';
+    });
+  }
+  list.innerHTML = html;
+  const cur = list.querySelector(".cur");
+  if (cur) cur.scrollIntoView({block: "center"});
+}
+function openIndex(focusGoto) {
+  renderIndex();
+  openSheet(indexScrim);
+  document.getElementById("gotoInput").value = "";
+  if (focusGoto) setTimeout(() => document.getElementById("gotoInput").focus(), 50);
+}
+document.getElementById("menuBtn").addEventListener("click", () => openIndex(false));
+document.getElementById("indexList").addEventListener("click", e => {
+  const b = e.target.closest("[data-page]");
+  if (!b) return;
+  closeSheets();
+  pager.go(+b.dataset.page);
+});
+function setTab(t) {
+  indexTab = t;
+  document.getElementById("tabSuras").setAttribute("aria-selected", String(t === "suras"));
+  document.getElementById("tabJuz").setAttribute("aria-selected", String(t === "juz"));
+  document.getElementById("tabHizb").setAttribute("aria-selected", String(t === "hizb"));
+  renderIndex();
+}
+document.getElementById("tabSuras").addEventListener("click", () => setTab("suras"));
+document.getElementById("tabJuz").addEventListener("click", () => setTab("juz"));
+document.getElementById("tabHizb").addEventListener("click", () => setTab("hizb"));
+document.getElementById("gotoForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const raw = document.getElementById("gotoInput").value.replace(/[٠-٩]/g, d => DIG.indexOf(d));
+  const n = parseInt(raw, 10);
+  if (n >= 1 && n <= LAST_PAGE) { closeSheets(); pager.go(n); }
+});
+document.getElementById("themeOpt").addEventListener("click", e => {
+  const b = e.target.closest("[data-theme-set]");
+  if (!b) return;
+  state.theme = b.dataset.themeSet; store.set("theme", state.theme); applyTheme();
+});
+function applyWeight() {
+  document.querySelectorAll("[data-weight]").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.weight === state.weight)));
+  relayout();
+}
+document.getElementById("weightOpt").addEventListener("click", e => {
+  const b = e.target.closest("[data-weight]");
+  if (!b) return;
+  state.weight = +b.dataset.weight; store.set("weight", state.weight); applyWeight();
+});
+
+/* word / aya info */
+let hafsFont = null;
+function loadHafsFont() {
+  if (!hafsFont) {
+    hafsFont = fetch("data/hafs.ttf").then(r => r.arrayBuffer()).then(buf => {
+      const f = new FontFace("KFGQPC Hafs", buf);
+      return f.load().then(ff => { document.fonts.add(ff); return true; });
+    }).catch(() => false);
+  }
+  return hafsFont;
+}
+/* the dabt signs and colours, explained (word info sheet and the legend) */
+const SIGNS = {
+  naql: ["النقل", "جرّةٌ مكانَ الهمزة التي نُقلت حركتها إلى الساكن قبلها: فوق الألف للفتح، وتحتها للكسر، وعلى يمينها للضم، وعلى السطر إن لم تكن للهمزة صورة."],
+  tashil: ["التسهيل", "نقطةٌ مطموسة مكانَ الهمزة بلا حركة: تُقرأ بين الهمزة والحرف المجانس لحركتها."],
+  ibdal: ["الإبدال", "النقطة المطموسة مع حركتها: تُبدَل الهمزةُ حرفاً متحركاً."],
+  ishmam: {warsh: ["الإشمام", "نقطةٌ مطموسة أمام السين: يُشَمّ كسرُها الضمَّ (سِيءَ، سِيئَتْ)."],
+           shubah: ["الإشمام", "نقطةٌ مطموسة أمام الدال: تُشَمّ الدالُ الساكنة الضمَّ في «مِنْ لَدْنِهِ» و«مِنْ لَدْنِي»."]},
+  taqlil: ["التقليل", "نقطةٌ مجوّفة تحت الحرف بدل الفتحة: يُقرأ بين الفتح والإمالة."],
+  imala: {warsh: ["الإمالة الكبرى", "نقطةٌ مطموسة مدوّرة تحت الحرف بدل الفتحة: يُمال الحرف إمالةً كبرى (هاء «طه» وحدها)."],
+          shubah: ["الإمالة الكبرى", "نقطةٌ مطموسة مدوّرة تحت الحرف بدل الفتحة: يُمال الحرف إمالةً كبرى (أدراك، رمى، أعمى، رأى، هار، ران، الر، حم، طه...)."]},
+  small: ["حرفٌ صغير", "واوٌ أو ياءٌ أو ألفٌ صغيرة مكانَ الهمزة الساكنة المبدلة حرفَ مدّ بعد همزة الوصل."],
+  lam: ["تغليظ اللام", "اللام الحمراء مغلّظة (مفخّمة) عند الأزرق: مفتوحةٌ بعد صاد أو طاء أو ظاء مفتوحة أو ساكنة، وهي مرقّقة في حفص؛ والرسم واحد."],
+  red: ["الفرق عن حفص", "الحرف الذي تخالف فيه الروايةُ روايةَ حفص يُلوَّن بالأحمر مع علامته (حركته أو سكونه أو شدّته أو نقطته)، ولا تُلوَّن الكلمة كلها."],
+  whole: {warsh: ["الكلمة كلها بالأحمر", "إذا كان الخلاف حذفاً لا يبقى معه في الكلمة ما يُلوَّن لُوِّنت الكلمة كلها، كـ«مَلِكِ» مكانَ «مَالِكِ» في حفص."],
+          shubah: ["الكلمة كلها بالأحمر", "إذا كان الخلاف حذفاً لا يبقى معه في الكلمة ما يُلوَّن لُوِّنت الكلمة كلها، كـ«بَيْتِي» مكانَ «بَيْتِيَ» في حفص."]}
+};
+const signOf = (key, code) => { const v = SIGNS[code]; return !v ? null : Array.isArray(v) ? v : v[key]; };
+const noteCodes = (D, p) => ((D.meta.notes || {})[p] || "").split(",").filter(Boolean);
+const esc = t => String(t).replace(/[&<>"]/g, ch => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[ch]));
+
+let infoAya = null;
+function openInfo(D, p, a) {
+  infoAya = a;
+  const ref = document.getElementById("infoRef");
+  const sname = D.meta.suras[(a.sura || 1) - 1].name;
+  ref.textContent = a.basmala ? "البسملة · سورة الفاتحة · " + RIW[D.key].long : "سورة " + sname + " · الآية " + ar(a.aya) + " · " + RIW[D.key].long;
+  const cmp = document.getElementById("infoCmp"), note = document.getElementById("infoNote"), signs = document.getElementById("infoSigns");
+  const hw = D.meta.hafs[p];
+  signs.innerHTML = "";
+  if (hw && D.red.has(p)) {
+    cmp.hidden = false;
+    document.getElementById("infoRLabel").textContent = RIW[D.key].short;
+    document.getElementById("infoHafs").textContent = hw;
+    loadHafsFont();
+    drawWord(document.getElementById("infoCanvas"), D, p);
+    signs.innerHTML = noteCodes(D, p).map(code => signOf(D.key, code)).filter(Boolean)
+      .map(([t, d]) => "<p><b>" + esc(t) + ":</b> " + esc(d) + "</p>").join("");
+    note.textContent = "بالأحمر: الحرف الذي تخالف فيه " + RIW[D.key].short + " روايةَ حفص مع علامته. إذا كان الخلاف حذفاً لا يبقى معه ما يُلوَّن لُوِّنت الكلمة كلها.";
+  } else {
+    cmp.hidden = true;
+    note.textContent = "لا فرق في هذه الكلمة بين " + RIW[D.key].short + " وحفص في رسم المصحف.";
+  }
+  document.getElementById("infoCopy").hidden = !D.words;
+  openSheet(infoScrim);
+}
+document.getElementById("infoCopy").addEventListener("click", () => {
+  const D = pager && pager.D;
+  if (D && infoAya) copyText(ayaText(D, infoAya));
+});
+function drawWord(canvas, D, p) {
+  const c = col(), dpr = Math.min(3, window.devicePixelRatio || 1);
+  const hpx = 56, s = hpx / D.meta.upem / 1.9;
+  const tid = D.tokOf[p], w = D.adv[tid] * s + 16;
+  canvas.style.width = w + "px"; canvas.style.height = hpx + "px";
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(hpx * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.lineWidth = lineW(); ctx.lineJoin = "round";
+  drawToken(ctx, D, tid, 8, hpx * 0.66, s, 1, D.red.get(p), c, dpr, lineW() > 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+/* ---------- the dabt legend: every sign with an example from the mushaf ---------- */
+const LEGEND = {warsh: ["red", "whole", "naql", "tashil", "ibdal", "ishmam", "taqlil", "imala", "small", "lam"],
+                shubah: ["red", "whole", "imala", "ishmam"]};
+function firstWith(D, test) {
+  const n = D.meta.notes || {};
+  let best = null;
+  for (const k of D.red.keys()) if (test(k, (n[k] || "").split(",").filter(Boolean)) && (best === null || k < best)) best = k;
+  return best;
+}
+function pageOf(D, p) {
+  if (!D.pageFirst) {
+    D.pageFirst = D.meta.pages.map(pg => { const l = pg.lines.find(x => x.t === "w" || x.t === "bw"); return l ? l.a : 0; });
+  }
+  const f = D.pageFirst;
+  let lo = 0, hi = f.length - 1, k = 0;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (f[mid] <= p) { k = mid; lo = mid + 1; } else hi = mid - 1; }
+  return k + 1;
+}
+function refOf(D, p) {
+  const a = ayaOf(D, p);
+  return a.basmala ? "البسملة" : "سورة " + D.meta.suras[a.sura - 1].name + " · " + ar(a.aya);
+}
+function openLegend() {
+  const D = pager && pager.D;
+  if (!D) return;
+  const list = document.getElementById("legendList");
+  list.textContent = "";
+  for (const code of LEGEND[D.key]) {
+    const sg = signOf(D.key, code);
+    if (!sg) continue;
+    const p = code === "red" ? firstWith(D, (k, c) => !c.length && D.meta.hafs[k] && !(D.red.get(k).size > 6))
+      : code === "whole" ? firstWith(D, (k, c) => c.includes("whole"))
+      : firstWith(D, (k, c) => c.includes(code));
+    const row = document.createElement("button");
+    row.className = "lg";
+    const cv = document.createElement("canvas");
+    cv.setAttribute("aria-hidden", "true");
+    row.appendChild(cv);
+    const t = document.createElement("span"); t.className = "lt"; t.textContent = sg[0];
+    const d = document.createElement("span"); d.className = "ld"; d.textContent = sg[1];
+    row.append(t, d);
+    if (p !== null) {
+      const r = document.createElement("span"); r.className = "lr"; r.textContent = refOf(D, p) + " · ص " + ar(pageOf(D, p));
+      d.appendChild(document.createElement("br")); d.appendChild(r);
+      row.dataset.p = p;
+      drawWord(cv, D, p);
+    } else cv.hidden = true;
+    list.appendChild(row);
+  }
+  openSheet(legendScrim);
+}
+document.getElementById("legendBtn").addEventListener("click", openLegend);
+document.getElementById("legendList").addEventListener("click", e => {
+  const b = e.target.closest("[data-p]"), D = pager && pager.D;
+  if (!b || !D) return;
+  const p = +b.dataset.p;
+  closeSheets();
+  pager.go(pageOf(D, p), false, {hl: ayaOf(D, p).range, marks: new Set([p])});
+});
+
+/* ---------- search: part of a word, a whole word, or an aya / a phrase ----------
+   Each word is matched in two spellings: the ordinary (imla'i) spelling of the
+   KFGQPC text (data/<key>.search.txt) and the Uthmani spelling of the mushaf; both
+   and the query are folded (no vowels or signs; hamza seats, alif forms, ta marbuta
+   and alif maqsura unified), so «الصلاة» and «الصلوة», «يسألون» and «يسالون», «السماوات»
+   and «السموات» find the same words.  With no result, alifs are ignored too. */
+const SIGNS_RX = /[ؐ-ًؚ-ٰٟۖ-ۭࢃ-࢏࣓-ࣿـ​-‏ ]/g;
+function fold(t, uthmani) {
+  if (uthmani) {
+    t = t.replace(/ـۧ/g, "ي")                                  // al-nabiyyin
+      .replace(/[وى]ٰ(?=[ء-ي])/g, "ا")            // salah, tawrah
+      .replace(/ٰ/g, "ا")                                             // the dagger alif
+      .replace(/[ࡰ-ࢂ]/g, "ا")                                    // the alifs of Warsh's naql and tas-hil
+      .replace(/ۦ(?=[ء-ي])/g, "ي");                         // li-ilafi
+  }
+  return t.replace(SIGNS_RX, "")
+    .replace(/[أإآٱ]/g, "ا").replace(/ؤ/g, "و").replace(/ئ/g, "ي").replace(/ء/g, "")
+    .replace(/[ىےۑی]/g, "ي").replace(/ة/g, "ه").replace(/ک/g, "ك")
+    .replace(/ا{2,}/g, "ا").replace(/وا(?=\s|$)/g, "و");
+}
+const noAlif = t => t.replace(/ا/g, "");
+function loadSearch(D) {
+  if (!D.searchP) {
+    D.searchP = Promise.all([
+      fetch("data/" + D.key + ".search.txt").then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }),
+      loadWords(D)
+    ]).then(([t]) => {
+      const imlai = t.split("\n");
+      const N = D.tokOf.length;
+      if (imlai.length !== N) throw new Error("search text");
+      const tokFold = D.words.map(w => fold(w, true));
+      const build = get => {
+        const off = new Int32Array(N + 1), parts = [];
+        let len = 0;
+        for (let p = 0; p < N; p++) {
+          off[p] = len;
+          const w = get(p);
+          parts.push(w, D.ends.has(p) ? "\n" : " ");
+          len += w.length + 1;
+        }
+        off[N] = len;
+        return {s: parts.join(""), off};
+      };
+      const I = build(p => fold(imlai[p], false)), U = build(p => tokFold[D.tokOf[p]]);
+      D.search = {I, U, loose: null, mk: build};
+      return D.search;
+    });
+    D.searchP.catch(() => { D.searchP = null; });
+  }
+  return D.searchP;
+}
+function wordAt(off, c) {
+  let lo = 0, hi = off.length - 2, k = 0;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (off[mid] <= c) { k = mid; lo = mid + 1; } else hi = mid - 1; }
+  return k;
+}
+function searchRx(q, mode, loose) {
+  let words = fold(q, true).split(/\s+/).filter(Boolean);
+  if (loose) words = words.map(noAlif).filter(Boolean);
+  if (!words.length) return null;
+  const body = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(" ");
+  return mode === "word" ? new RegExp("(^|[ \\n])(" + body + ")(?=[ \\n]|$)", "g") : new RegExp("()(" + body + ")", "g");
+}
+function runSearch(D, q, mode) {
+  const S = D.search;
+  const hits = new Map();                         // first word of a match -> set of its words
+  const scan = (str, rx) => {
+    rx.lastIndex = 0;
+    let m;
+    while ((m = rx.exec(str.s))) {
+      const a = m.index + m[1].length, b = a + m[2].length - 1;
+      if (m[2].length === 0) { rx.lastIndex++; continue; }
+      const p0 = wordAt(str.off, a), p1 = wordAt(str.off, b);
+      let set = hits.get(p0);
+      if (!set) { set = new Set(); hits.set(p0, set); }
+      for (let p = p0; p <= p1; p++) set.add(p);
+    }
+  };
+  let rx = searchRx(q, mode, false);
+  if (!rx) return null;
+  scan(S.I, rx); scan(S.U, rx);
+  let loose = false;
+  if (!hits.size) {
+    if (!S.loose) {
+      const imlai = S.I.s, uth = S.U.s;
+      S.loose = {I: S.mk(p => noAlif(imlai.slice(S.I.off[p], S.I.off[p + 1] - 1))), U: S.mk(p => noAlif(uth.slice(S.U.off[p], S.U.off[p + 1] - 1)))};
+    }
+    rx = searchRx(q, mode, true);
+    if (rx) { scan(S.loose.I, rx); scan(S.loose.U, rx); loose = hits.size > 0; }
+  }
+  // group by aya, in the order of the mushaf
+  const byAya = new Map();
+  for (const p0 of [...hits.keys()].sort((x, y) => x - y)) {
+    const a = ayaOf(D, p0), key = a.range[0];
+    let r = byAya.get(key);
+    if (!r) { r = {aya: a, words: new Set(), first: p0, n: 0}; byAya.set(key, r); }
+    hits.get(p0).forEach(p => r.words.add(p));
+    r.n++;
+  }
+  return {q, mode, loose, results: [...byAya.values()], count: hits.size, key: D.key};
+}
+const searchInput = document.getElementById("searchInput"), searchStat = document.getElementById("searchStat");
+const searchResults = document.getElementById("searchResults");
+let searchMode = ["part", "word", "aya"].includes(store.get("searchMode", "part")) ? store.get("searchMode", "part") : "part";
+let found = null, foundAt = -1, shown = 0, searchTimer = 0, searchSeq = 0;
+const SHOW_STEP = 60;
+function setSearchMode(m) {
+  searchMode = m; store.set("searchMode", m);
+  document.querySelectorAll("#searchModes [data-mode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
+}
+const DISPLAY = {"ࡶ": "ا۬", "ࡹ": "اٜ", "ࢇ": "ـ۬"};
+const shownWord = (D, p) => wordText(D, p).replace(/[ࡶࡹࢇ]/g, ch => DISPLAY[ch]);
+function resultHTML(D, r, i) {
+  const a = r.aya, [s0, s1] = a.range;
+  let from = s0, to = s1;
+  if (s1 - s0 > 26) { from = Math.max(s0, r.first - 9); to = Math.min(s1, from + 24); from = Math.max(s0, to - 24); }
+  let t = from > s0 ? "… " : "";
+  for (let p = from; p <= to; p++) {
+    const w = esc(shownWord(D, p)), on = r.words.has(p);
+    t += (on && !r.words.has(p - 1) ? "<mark>" : "") + w + (on && !(p < to && r.words.has(p + 1)) ? "</mark>" : "") + (p < to ? " " : "");
+  }
+  t += to < s1 ? " …" : (a.basmala ? "" : " ﴿" + ar(a.aya) + "﴾");
+  const where = a.basmala ? "البسملة" : "سورة " + D.meta.suras[a.sura - 1].name + " <b>" + ar(a.aya) + "</b>";
+  return '<button class="res" data-i="' + i + '"><span class="rh"><span>' + where + '</span><span>ص ' + ar(pageOf(D, r.first)) +
+    (r.n > 1 ? " · " + ar(r.n) + " مواضع" : "") + '</span></span><span class="rt">' + t + '</span></button>';
+}
+function showResults(more) {
+  const D = pager && pager.D;
+  if (!found || !D) return;
+  if (!more) { searchResults.innerHTML = ""; shown = 0; }
+  const old = searchResults.querySelector(".more");
+  if (old) old.remove();
+  let html = "";
+  const end = Math.min(found.results.length, shown + SHOW_STEP);
+  for (let i = shown; i < end; i++) html += resultHTML(D, found.results[i], i);
+  shown = end;
+  if (shown < found.results.length) html += '<button class="more" data-more>عرض المزيد (' + ar(found.results.length - shown) + ')</button>';
+  searchResults.insertAdjacentHTML("beforeend", html);
+}
+function statusText(f) {
+  if (!f.results.length) return "";
+  return "المواضع: " + ar(f.count) + " · الآيات: " + ar(f.results.length) + " · " + RIW[f.key].long + (f.loose ? " · (بتجاهل الألف)" : "");
+}
+function refSearch(D, q) {
+  // a sura and an aya number: «البقرة ٢٥٥»، «سورة الكهف ١٠»، «2:255»
+  const t = q.replace(/[٠-٩]/g, d => DIG.indexOf(d)).replace(/[:：،,.\-]/g, " ").replace(/\s+/g, " ").trim();
+  let m = t.match(/^(\d{1,3}) (\d{1,3})$/), sura = 0, aya = 0;
+  if (m) { sura = +m[1]; aya = +m[2]; }
+  else if ((m = t.match(/^(?:سوره |سورة )?(.+?) (\d{1,3})$/))) {
+    const want = fold(m[1], true).replace(/^ال/, "").replace(/\s/g, "");
+    const hit = D.meta.suras.find(su => fold(su.name, true).replace(/^ال/, "").replace(/\s/g, "") === want);
+    if (hit) { sura = hit.n; aya = +m[2]; }
+  }
+  if (!sura || sura > D.meta.suras.length || aya < 1 || aya > D.meta.suras[sura - 1].ayat) return null;
+  const k = D.meta.surah_first_ayah[sura - 1] + aya - 1, st = D.meta.ayah_starts;
+  const a0 = st[k], a1 = k + 1 < st.length ? st[k + 1] - 1 : D.tokOf.length - 1;
+  const words = new Set();
+  return {q, mode: "ref", loose: false, key: D.key, count: 1,
+    results: [{aya: {sura, aya, range: [a0, a1]}, words, first: a0, n: 1}]};
+}
+function doSearch() {
+  const D = pager && pager.D, q = searchInput.value.trim();
+  const seq = ++searchSeq;
+  if (!D) return;
+  const ref = refSearch(D, q);
+  if (ref) {
+    loadWords(D).then(() => {
+      if (seq !== searchSeq) return;
+      found = ref; foundAt = -1;
+      searchStat.textContent = "الانتقال إلى الآية";
+      showResults(false);
+    }).catch(() => {});
+    return;
+  }
+  const len = fold(q, true).replace(/\s/g, "").length;
+  if (len < 2) {
+    found = null; searchResults.innerHTML = "";
+    searchStat.textContent = q ? "اكتب حرفين أو أكثر." : "";
+    if (!q) searchResults.innerHTML = '<div class="empty">ابحث بجزء من كلمة («رحم»)، أو بكلمة كاملة («الصلاة»)، أو بآية أو عبارة منها («الله لا إله إلا هو»).<br>تُكتب الكلمات بالإملاء المعتاد أو بالرسم العثماني، بالتشكيل أو بدونه.</div>';
+    return;
+  }
+  searchStat.textContent = "جارٍ البحث…";
+  loadSearch(D).then(() => {
+    if (seq !== searchSeq || pager.D !== D) return;
+    found = runSearch(D, q, searchMode);
+    foundAt = -1;
+    if (!found || !found.results.length) {
+      searchStat.textContent = "";
+      searchResults.innerHTML = '<div class="empty">لا نتائج لـ«' + esc(q) + '» في ' + esc(RIW[D.key].long) + '.' +
+        (searchMode !== "part" ? '<br>جرّب «جزء من كلمة».' : "") + '</div>';
+      return;
+    }
+    searchStat.textContent = statusText(found);
+    showResults(false);
+    searchResults.scrollTop = 0;
+  }).catch(() => { if (seq === searchSeq) searchStat.textContent = "تعذّر تحميل نص البحث."; });
+}
+function openSearch() {
+  if (!pager || !pager.D) return;
+  loadHafsFont();
+  openSheet(searchScrim);
+  if (found && found.key !== pager.D.key) { found = null; }
+  if (!found) doSearch();
+  setTimeout(() => { searchInput.focus(); if (searchInput.value) searchInput.select(); }, 60);
+  if (found && foundAt >= 0) {
+    const el = searchResults.querySelector('[data-i="' + foundAt + '"]');
+    if (el) el.scrollIntoView({block: "center"});
+  }
+}
+searchInput.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, 260); });
+document.getElementById("searchForm").addEventListener("submit", e => { e.preventDefault(); clearTimeout(searchTimer); doSearch(); searchInput.blur(); });
+document.getElementById("searchModes").addEventListener("click", e => {
+  const b = e.target.closest("[data-mode]");
+  if (!b || b.dataset.mode === searchMode) return;
+  setSearchMode(b.dataset.mode);
+  doSearch();
+});
+searchResults.addEventListener("click", e => {
+  if (e.target.closest("[data-more]")) { showResults(true); return; }
+  const b = e.target.closest("[data-i]");
+  if (!b) return;
+  closeSheets();
+  goFound(+b.dataset.i);
+});
+const findBar = document.getElementById("findBar");
+let findPushed = false;                            // Android: the back button closes the search results bar
+function goFound(i) {
+  const D = pager && pager.D;
+  if (!found || !D || found.key !== D.key || !found.results.length) return;
+  foundAt = (i + found.results.length) % found.results.length;
+  const r = found.results[foundAt];
+  if (state.bars) setBars(false);
+  pager.go(pageOf(D, r.first), false, {hl: r.aya.range, marks: r.words});
+  // keep the bar off the words it points to: at the top when they are low on the page
+  const sl = pager.slots[1], L = sl.layout;
+  let low = 0;
+  if (L) for (const ln of L.lines) for (const t of ln.toks) {
+    if (r.words.size ? r.words.has(t.p) : (t.p >= r.aya.range[0] && t.p <= r.aya.range[1])) low = Math.max(low, ln.base);
+  }
+  findBar.classList.toggle("top", !!L && sl.canvas.getBoundingClientRect().top + low > window.innerHeight * 0.62);
+  document.getElementById("findN").textContent = ar(foundAt + 1) + " / " + ar(found.results.length);
+  document.getElementById("findQ").textContent = "«" + found.q + "»";
+  findBar.hidden = false;
+  if (useHistory && !findPushed) {
+    setTimeout(() => { if (!findBar.hidden && !findPushed && !sheetOpen) { try { history.pushState({find: 1}, ""); findPushed = true; } catch (_) {} } }, 150);
+  }
+}
+function closeFind(fromPop) {
+  findBar.hidden = true;
+  if (findPushed && !fromPop) popHistory();
+  findPushed = false;
+  const sl = pager && pager.slots[1];
+  if (sl && (sl.marks || sl.hl)) { sl.marks = null; sl.hl = null; pager.render(sl, pager.D, sl.page, "hl"); }
+}
+document.getElementById("findPrev").addEventListener("click", () => goFound(foundAt - 1));
+document.getElementById("findNext").addEventListener("click", () => goFound(foundAt + 1));
+document.getElementById("findClose").addEventListener("click", () => closeFind());
+document.getElementById("findQ").addEventListener("click", openSearch);
+document.getElementById("searchBtn").addEventListener("click", openSearch);
+window.addEventListener("keydown", e => {
+  if ((e.key === "f" && (e.ctrlKey || e.metaKey)) || (e.key === "/" && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) && searchScrim.hidden)) {
+    e.preventDefault(); openSearch();
+  }
+});
+
+/* ---------- riwayah + diff controls ---------- */
+const loading = document.getElementById("loading"), loadingText = document.getElementById("loadingText");
+async function selectRiwaya(key) {
+  state.riwaya = key; store.set("riwaya", key);
+  document.querySelectorAll(".seg [data-r]").forEach(b => b.setAttribute("aria-checked", String(b.dataset.r === key)));
+  const ready = cache[key] && cache[key].done;
+  if (!ready) { loading.hidden = false; loadingText.textContent = "جارٍ تحميل " + RIW[key].long + "…"; }
+  try {
+    const D = await loadData(key);
+    cache[key].done = true;
+    if (state.riwaya !== key) return;
+    loading.hidden = true;
+    clearSelection();
+    pager.show(D);
+    loadWords(D).then(() => { if (pager.D === D) pager.textLayers(); }).catch(() => {});
+    closeFind();
+    if (found && found.key !== key) found = null;
+    document.getElementById("about").innerHTML =
+      "النص وتقسيم الصفحات والأسطر والخطوط: مجمع الملك فهد لطباعة المصحف الشريف (الإصدار ٣٫٠، عبر أرشيف quran-text)، " +
+      "على صفحات مصحف المدينة النبوية: " + ar(604) + " صفحة في كل منها " + ar(15) + " سطراً. " +
+      "رواية ورش مكتوبة بالضبط المشرقي بخط المجمع المشرقي، دون تغيير في الرسم أو القراءة، وعلى اصطلاحات ضبط المصاحف المشرقية: " +
+      "جرّةٌ مكان الهمزة المنقولة حركتُها (فوق الألف للفتح، وتحتها للكسر، وعلى يمينها للضم، وعلى السطر إن لم تكن لها صورة)، " +
+      "ونقطةٌ مطموسة مكان الهمزة المسهّلة بلا حركة، ومعها الحركة في الإبدال، وأمام السين في الإشمام، " +
+      "ونقطةٌ مجوّفة تحت الحرف للتقليل، ونقطةٌ مطموسة مدوّرة تحته للإمالة الكبرى (هاء «طه»)، وحرفٌ صغير مكان الهمزة الساكنة المبدلة بعد همزة الوصل. " +
+      "ورواية شعبة بخط المجمع لروايتها وضبطها، على الاصطلاحات نفسها: نقطةٌ مطموسة مدوّرة تحت الحرف للإمالة الكبرى (أدراك، رمى، أعمى، رأى، هار، ران، الر، حم، طه...)، " +
+      "ونقطةٌ أمام الدال للإشمام في «مِنْ لَدْنِهِ» و«مِنْ لَدْنِي». " +
+      "الأحمر: الحرف الذي يخالف فيه نصُّ الرواية نصَّ رواية حفص في المصدر نفسه، مع علامته؛ والكلمة كلها إذا كان الخلاف حذفاً؛ " +
+      "ومعه في ورش اللام التي يغلّظها الأزرق (كلام «الصلاة» و«ظلموا» و«مطلع»). ولا يُلوَّن ما لا يظهر في الرسم كمدّ البدل وترقيق الراءات. " +
+      "الأحزاب: علامات ۞ في مصحف المجمع (أرباع في شعبة، وأثمان على قسمة المغاربة في ورش). " +
+      "انقر الصفحة لإظهار الأشرطة، واضغط مطوّلاً على كلمة لتحديد النص ونسخه، وانقر مرتين على كلمة لعرض آيتها والفرق عن حفص.";
+  } catch (err) {
+    loading.hidden = false;
+    loadingText.textContent = "تعذّر تحميل بيانات المصحف. تحقّق من الاتصال ثم أعد فتح التطبيق.";
+  }
+}
+document.querySelector(".seg").addEventListener("click", e => {
+  const b = e.target.closest("[data-r]");
+  if (b && b.dataset.r !== state.riwaya) selectRiwaya(b.dataset.r);
+});
+const diffBtn = document.getElementById("diffBtn");
+function applyDiff() {
+  diffBtn.setAttribute("aria-pressed", String(state.diff));
+  pager.redrawAll();
+}
+diffBtn.addEventListener("click", () => { state.diff = !state.diff; store.set("diff", state.diff); applyDiff(); });
+
+/* browser full screen (phones' browsers; the Android app is full screen already) */
+const fsBtn = document.getElementById("fsBtn");
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+if (!bridge && (document.fullscreenEnabled || document.webkitFullscreenEnabled)) {
+  fsBtn.hidden = false;
+  fsBtn.addEventListener("click", () => {
+    try {
+      if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      else {
+        const r = (root.requestFullscreen || root.webkitRequestFullscreen).call(root, {navigationUI: "hide"});
+        if (r && r.catch) r.catch(() => {});
+      }
+    } catch (_) {}
+  });
+  const fsSync = () => fsBtn.setAttribute("aria-label", fsEl() ? "الخروج من ملء الشاشة" : "ملء الشاشة");
+  document.addEventListener("fullscreenchange", fsSync);
+  document.addEventListener("webkitfullscreenchange", fsSync);
+}
+
+/* ---------- start ---------- */
+pager = new Pager();
+window.__mushaf = {pager, state, setBars, textOf, selectedWords, ayaText, ayaOf, loadSearch, runSearch, openSearch, goFound, fold,
+  pageOf, openLegend, get found() { return found; }};
+if (bridge) {
+  const v = String(call("getInsets") || "").split(",");
+  if (v.length === 2) setInsets(v[0], v[1]);
+}
+applyTheme();
+applyWeight();
+diffBtn.setAttribute("aria-pressed", String(state.diff));
+setBars(false);
+let rz = 0;
+window.addEventListener("resize", () => {
+  cancelAnimationFrame(rz);
+  rz = requestAnimationFrame(() => { relayout(); if (state.bars) root.style.setProperty("--bbh", bottomBar.offsetHeight + "px"); });
+});
+selectRiwaya(state.riwaya).then(() => {
+  if (!store.get("hinted", false) && pager.D) {
+    store.set("hinted", true); store.set("seen14", true);
+    toast("انقر الصفحة لإظهار الأشرطة · اضغط مطوّلاً على كلمة لتحديدها ونسخها · انقر مرتين على كلمة لعرض الفرق عن حفص", 6500);
+  } else if (!store.get("seen14", false) && pager.D) {
+    store.set("seen14", true);
+    toast("جديد: البحث (العدسة في الشريط العلوي) · علامات الضبط لشعبة · خط أعرض وأوضح، ويمكن تغييره من الفهرس", 6500);
+  }
+  const other = state.riwaya === "warsh" ? "shubah" : "warsh";
+  setTimeout(() => loadData(other).then(() => { cache[other].done = true; }).catch(() => {}), 1500);
+});
+if ("serviceWorker" in navigator && location.protocol === "https:" && window.MUSHAF_SW) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+})();
+</script>
+
+</body>
+</html>

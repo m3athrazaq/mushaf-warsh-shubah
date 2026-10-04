@@ -9,12 +9,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="مصحف الروايتين">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="icon" href="icons/icon-192.png">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" href="./icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box;height:100%}
 [hidden]{display:none!important}</style>
-<script>window.MUSHAF_STANDALONE=true;window.MUSHAF_SW=true;</script>
+<script>window.MUSHAF_FLAT=true;window.MUSHAF_STANDALONE=true;window.MUSHAF_SW=true;</script>
 </head>
 <body>
 <title>مصحف ورش وشعبة</title>
@@ -394,22 +394,58 @@ function col() {
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (state.theme === "auto") applyTheme(); });
 window.__mushafSystemTheme = () => { if (state.theme === "auto") applyTheme(); };
 
-/* ---------- data ---------- */
+/* ---------- data ----------
+   Every data file is fetched with a relative path, from ./data/ (the builds as made) or
+   from the page's own folder (./, a flat upload such as a GitHub Pages repository filled
+   from a phone).  Each file may also be a .txt file: the JSON as it is, the binary files
+   (glyph runs, the Hafs font) as base64 text, for hosts and uploaders that take text only.
+   Once a file is found, its folder is tried first for the rest. */
+let dataDir = null;
+function fetchFirst(cands) {
+  let i = 0;
+  const next = () => {
+    if (i >= cands.length) {
+      const e = new Error("not found: " + cands.map(c => c.url).join(", "));
+      e.missing = cands[0].url.split("/").pop();
+      return Promise.reject(e);
+    }
+    const c = cands[i++];
+    return fetch(c.url).then(r => {
+      if (!r.ok || /text\/html/i.test(r.headers.get("content-type") || "")) return next();   // missing (or a host's HTML fallback page)
+      dataDir = c.dir;
+      return {r, c};
+    }, next);
+  };
+  return next();
+}
+function candidates(names) {           // names: [[file name, form], ...] in order of preference
+  const flat = !!window.MUSHAF_FLAT;    // the flat text-only build: beside the page, .txt first
+  const dirs = dataDir ? [dataDir, dataDir === "./data/" ? "./" : "./data/"] : flat ? ["./", "./data/"] : ["./data/", "./"];
+  if (flat) names = names.slice().sort((a, b) => (b[0].endsWith(".txt") ? 1 : 0) - (a[0].endsWith(".txt") ? 1 : 0));
+  const out = [];
+  for (const dir of dirs) for (const [name, form] of names) out.push({url: dir + name, dir, form});
+  return out;
+}
+function fromBase64(t) {
+  const b = atob(t.replace(/\s+/g, "")), u = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return u.buffer;
+}
+function getText(name) {
+  return fetchFirst(candidates([[name, "text"]])).then(({r}) => r.text());
+}
+function getJSON(name) {
+  return fetchFirst(candidates([[name, "json"], [name + ".txt", "json"]])).then(({r}) => r.text()).then(t => JSON.parse(t));
+}
+function getBinary(name, b64name) {     // the file itself, or its bytes as base64 text
+  const names = window.MUSHAF_B64 ? [[b64name, "b64"], [name, "bin"]] : [[name, "bin"], [b64name, "b64"]];
+  return fetchFirst(candidates(names)).then(({r, c}) => c.form === "bin" ? r.arrayBuffer() : r.text().then(fromBase64));
+}
 const cache = {};
 function loadData(key) {
   if (!cache[key]) {
-    cache[key] = Promise.all([
-      fetch("data/" + key + ".json").then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-      fetch("data/" + key + (window.MUSHAF_B64 ? ".glyphs.txt" : ".bin")).then(r => {
-        if (!r.ok) throw new Error(r.status);
-        if (!window.MUSHAF_B64) return r.arrayBuffer();
-        return r.text().then(t => {               // same bytes, base64 (hosts that serve no binary files)
-          const b = atob(t.trim()), u = new Uint8Array(b.length);
-          for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
-          return u.buffer;
-        });
-      })
-    ]).then(([meta, buf]) => {
+    cache[key] = getJSON(key + ".json").then(meta => getBinary(key + ".bin", key + ".glyphs.txt").then(buf => [meta, buf]))
+    .then(([meta, buf]) => {
       const dv = new DataView(buf);
       const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
       if (magic !== "MSHF") throw new Error("bad data");
@@ -440,8 +476,7 @@ function loadData(key) {
 }
 function loadWords(D) {           // the Unicode text of every printed word form (for selecting and copying)
   if (!D.wordsP) {
-    D.wordsP = fetch("data/" + D.key + ".words.txt").then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
-      .then(t => { D.words = t.split("\n"); return D; });
+    D.wordsP = getText(D.key + ".words.txt").then(t => { D.words = t.split("\n"); return D; });
     D.wordsP.catch(() => { D.wordsP = null; });
   }
   return D.wordsP;
@@ -1157,7 +1192,7 @@ document.getElementById("weightOpt").addEventListener("click", e => {
 let hafsFont = null;
 function loadHafsFont() {
   if (!hafsFont) {
-    hafsFont = fetch("data/hafs.ttf").then(r => r.arrayBuffer()).then(buf => {
+    hafsFont = getBinary("hafs.ttf", "hafs.ttf.txt").then(buf => {
       const f = new FontFace("KFGQPC Hafs", buf);
       return f.load().then(ff => { document.fonts.add(ff); return true; });
     }).catch(() => false);
@@ -1310,7 +1345,7 @@ const noAlif = t => t.replace(/ا/g, "");
 function loadSearch(D) {
   if (!D.searchP) {
     D.searchP = Promise.all([
-      fetch("data/" + D.key + ".search.txt").then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }),
+      getText(D.key + ".search.txt"),
       loadWords(D)
     ]).then(([t]) => {
       const imlai = t.split("\n");
@@ -1583,7 +1618,10 @@ async function selectRiwaya(key) {
       "انقر الصفحة لإظهار الأشرطة، واضغط مطوّلاً على كلمة لتحديد النص ونسخه، وانقر مرتين على كلمة لعرض آيتها والفرق عن حفص.";
   } catch (err) {
     loading.hidden = false;
-    loadingText.textContent = "تعذّر تحميل بيانات المصحف. تحقّق من الاتصال ثم أعد فتح التطبيق.";
+    loadingText.textContent = err && err.missing
+      ? "تعذّر تحميل بيانات المصحف: لم يوجد الملف «" + err.missing + "» (ولا «" + err.missing.replace(/\.(json|bin|ttf)$/, m => m === ".bin" ? ".glyphs.txt" : m + ".txt") +
+        "») في مجلد data ولا بجانب الصفحة. ارفع ملفات البيانات كلها مع index.html ثم أعد فتح الصفحة."
+      : "تعذّر تحميل بيانات المصحف. تحقّق من الاتصال ثم أعد فتح التطبيق.";
   }
 }
 document.querySelector(".seg").addEventListener("click", e => {

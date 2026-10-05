@@ -1,8 +1,8 @@
-// Offline cache for the mushaf (all pages of both riwayat).
-const CACHE = "mushaf-flat-255ab6772c83";
-const FILES = ["./", "index.html", "warsh.json.txt", "warsh.glyphs.txt", "warsh.words.txt", "warsh.search.txt", "shubah.json.txt", "shubah.glyphs.txt", "shubah.words.txt", "shubah.search.txt", "hafs.ttf.txt", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "manifest.webmanifest"];
+// Offline cache for the mushaf: the app at once, each riwayah's pages once opened.
+const CACHE = "mushaf-9b1c0f19f28b";
+const FILES = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => Promise.all(FILES.map(f => c.add(f).catch(() => null)))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))

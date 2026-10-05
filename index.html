@@ -8,16 +8,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="مصحف الروايتين">
+<meta name="apple-mobile-web-app-title" content="مصحف الروايات">
 <link rel="manifest" href="./manifest.webmanifest">
-<link rel="apple-touch-icon" href="./apple-touch-icon.png">
-<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" href="./icons/icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box;height:100%}
 [hidden]{display:none!important}</style>
-<script>window.MUSHAF_FLAT=true;window.MUSHAF_STANDALONE=true;window.MUSHAF_SW=true;</script>
+<script>window.MUSHAF_STANDALONE=true;window.MUSHAF_SW=true;</script>
 </head>
 <body>
-<title>مصحف ورش وشعبة</title>
+<title>مصحف الروايات</title>
 <style>
 /* Full-screen mushaf: the page fills the screen; a tap shows a top bar (riwayah, differences,
    index) and a bottom bar (page, slider).  Pages are drawn on canvas from the KFGQPC glyphs;
@@ -76,9 +76,20 @@ body.bars .bar{transform:none;visibility:visible;transition:transform .22s cubic
 .iconbtn{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;flex:none}
 .iconbtn:active{background:var(--hl)}
 .iconbtn svg{width:22px;height:22px}
-.seg{flex:1;display:flex;max-width:320px;margin:0 auto;background:var(--ground);border-radius:14px;padding:4px;gap:4px}
-.seg button{flex:1;height:36px;border-radius:10px;font-size:17px;font-weight:600;color:var(--muted);transition:background .15s,color .15s}
-.seg button[aria-checked="true"]{background:var(--accent);color:var(--accent-ink);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.riwbtn{flex:1;min-width:0;max-width:300px;margin:0 auto;height:40px;display:flex;align-items:center;justify-content:center;gap:8px;
+  border-radius:14px;background:var(--ground);padding:0 14px}
+.riwbtn .rn{font-size:17px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.riwbtn .rr{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.riwbtn svg{width:16px;height:16px;flex:none;color:var(--muted)}
+.riwbtn:active{background:var(--hl)}
+.rlist{overflow:auto;-webkit-overflow-scrolling:touch;padding:0 10px 12px;min-height:0}
+.rgroup{font-size:12.5px;color:var(--muted);padding:12px 8px 4px;font-weight:600;letter-spacing:.02em}
+.rrow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px;width:100%;text-align:right;padding:10px 12px;border-radius:12px}
+.rrow:active,.rrow[aria-checked="true"]{background:var(--hl)}
+.rrow .t{font-size:17px;font-weight:700}
+.rrow .d{grid-column:1;font-size:12.5px;color:var(--muted);line-height:1.5}
+.rrow .ck{grid-row:span 2;grid-column:2;width:22px;height:22px;border-radius:50%;border:2px solid var(--line);box-sizing:border-box}
+.rrow[aria-checked="true"] .ck{border:6px solid var(--accent)}
 .diffbtn{flex:none;height:36px;display:flex;align-items:center;gap:7px;padding:0 12px;border-radius:12px;
   border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--muted)}
 .diffbtn .dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--diff);box-sizing:border-box}
@@ -144,9 +155,8 @@ body.bars .selbar{bottom:calc(var(--bbh,110px) + 10px)}
 .info .ref{font-size:15px;font-weight:600;padding-top:8px}
 .cmp{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;background:var(--paper);border-radius:12px;padding:10px 12px}
 .cmp .lbl{font-size:13px;color:var(--muted)}
-.cmp .w{font-size:30px;line-height:1.9;direction:rtl}
 .cmp canvas{height:56px;justify-self:start}
-.hafsfont{font-family:"KFGQPC Hafs",serif}
+.cmp .lbl{white-space:nowrap}
 .note{font-size:13px;color:var(--muted);line-height:1.6}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
 .btn{height:40px;padding:0 18px;border-radius:12px;background:var(--ground);font-weight:600}
@@ -154,6 +164,20 @@ body.bars .selbar{bottom:calc(var(--bbh,110px) + 10px)}
 .notes{display:flex;flex-direction:column;gap:6px}
 .notes p{margin:0;font-size:13.5px;line-height:1.7;color:var(--ink)}
 .notes b{color:var(--diff);font-weight:700}
+.info{overflow:auto;-webkit-overflow-scrolling:touch;min-height:0}
+.sec{font-size:13px;font-weight:700;color:var(--muted);margin:2px 0 -4px}
+.kinds{display:flex;flex-direction:column;gap:8px}
+.kind{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;align-items:baseline}
+.kind b{grid-row:span 2;font-size:12px;font-weight:700;color:var(--accent-ink);background:var(--diff);border-radius:7px;padding:2px 8px;white-space:nowrap}
+.kind span{font-size:13.5px;line-height:1.7}
+.reads{display:flex;flex-direction:column;gap:2px;background:var(--paper);border-radius:12px;padding:6px}
+.rd{display:grid;grid-template-columns:22px auto 1fr;align-items:center;gap:4px 10px;padding:6px 8px;border-radius:10px}
+.rd.mine{background:var(--hl)}
+.rd .i{font-size:13px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.rd canvas{height:46px;justify-self:start}
+.rd .who{font-size:13.5px;line-height:1.6}
+.rd .who em{font-style:normal;color:var(--accent);font-weight:700}
+.rd .none{font-size:14px;color:var(--muted)}
 
 /* ---- search ---- */
 .sheet.tall{height:86%}
@@ -170,7 +194,7 @@ body.bars .selbar{bottom:calc(var(--bbh,110px) + 10px)}
 .res:active{background:var(--hl)}
 .res .rh{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted);margin-bottom:2px}
 .res .rh b{color:var(--ink);font-weight:600}
-.res .rt{font-family:"KFGQPC Hafs",serif;font-size:22px;line-height:2.05;color:var(--ink);direction:rtl;word-spacing:2px}
+.res .rt{font-family:"KFGQPC Uthmanic",serif;font-size:22px;line-height:2.05;color:var(--ink);direction:rtl;word-spacing:2px}
 .res mark{background:var(--found);color:inherit;border-radius:5px;padding:0 1px}
 .more{display:block;margin:10px auto 4px;height:40px;padding:0 20px;border-radius:12px;background:var(--ground);font-weight:600}
 .empty{padding:28px 18px;text-align:center;color:var(--muted);font-size:14px;line-height:1.8}
@@ -204,10 +228,10 @@ body.bars .findbar.top{top:auto;bottom:calc(var(--bbh,110px) + 10px)}
     <button class="iconbtn" id="searchBtn" aria-label="البحث في القرآن">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/></svg>
     </button>
-    <div class="seg" role="radiogroup" aria-label="الرواية">
-      <button role="radio" id="r-warsh" data-r="warsh" aria-checked="true">ورش</button>
-      <button role="radio" id="r-shubah" data-r="shubah" aria-checked="false">شعبة</button>
-    </div>
+    <button class="riwbtn" id="riwBtn" aria-haspopup="dialog" aria-label="الرواية: ورش. اختيار الرواية">
+      <span class="rn" id="riwName">ورش</span><span class="rr" id="riwReader">عن نافع</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
     <button class="diffbtn" id="diffBtn" aria-pressed="true" title="إظهار الفرق عن رواية حفص بالأحمر"><span class="dot"></span>الفروق</button>
     <button class="iconbtn" id="fsBtn" aria-label="ملء الشاشة" hidden>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
@@ -268,6 +292,12 @@ body.bars .findbar.top{top:auto;bottom:calc(var(--bbh,110px) + 10px)}
           <button data-weight="0" aria-pressed="false">رفيع</button>
         </span>
       </label>
+      <label>التقليل
+        <span class="opt" id="taqlilOpt">
+          <button data-taqlil="filled" aria-pressed="true">نقطة مطموسة</button>
+          <button data-taqlil="hollow" aria-pressed="false">مجوّفة</button>
+        </span>
+      </label>
       <button class="linkbtn" id="legendBtn">علامات الضبط والألوان</button>
     </div>
     <div class="about" id="about"></div>
@@ -280,9 +310,13 @@ body.bars .findbar.top{top:auto;bottom:calc(var(--bbh,110px) + 10px)}
       <div class="ref" id="infoRef"></div>
       <div class="cmp" id="infoCmp" hidden>
         <span class="lbl" id="infoRLabel">ورش</span><canvas id="infoCanvas" aria-hidden="true"></canvas>
-        <span class="lbl">حفص</span><span class="w hafsfont" id="infoHafs"></span>
+        <span class="lbl" id="infoHLabel">حفص</span><canvas id="infoHafs" aria-hidden="true"></canvas>
       </div>
+      <div class="sec" id="infoKindsH" hidden>نوع الخلاف</div>
+      <div class="kinds" id="infoKinds"></div>
       <div class="notes" id="infoSigns"></div>
+      <div class="sec" id="infoReadsH" hidden></div>
+      <div class="reads" id="infoReads" hidden></div>
       <div class="note" id="infoNote"></div>
       <div class="btnrow"><button class="btn primary" id="infoCopy">نسخ الآية</button><button class="btn" data-close>إغلاق</button></div>
     </div>
@@ -306,6 +340,16 @@ body.bars .findbar.top{top:auto;bottom:calc(var(--bbh,110px) + 10px)}
   </div>
 </div>
 
+<div class="scrim" id="riwScrim" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="riwTitle">
+    <div class="sheet-h">
+      <h2 id="riwTitle">الرواية</h2>
+      <button class="iconbtn" data-close aria-label="إغلاق"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="rlist" id="riwList" role="radiogroup" aria-labelledby="riwTitle"></div>
+  </div>
+</div>
+
 <div class="scrim" id="legendScrim" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="legendTitle">
     <div class="sheet-h">
@@ -322,9 +366,27 @@ body.bars .findbar.top{top:auto;bottom:calc(var(--bbh,110px) + 10px)}
 const DIG = "٠١٢٣٤٥٦٧٨٩";
 const ar = n => String(n).replace(/\d/g, d => DIG[d]);
 const ayat = n => n === 1 ? "آية واحدة" : n === 2 ? "آيتان" : (n % 100 >= 3 && n % 100 <= 10) ? ar(n) + " آيات" : ar(n) + " آية";
+// the seven riwayat, in the order of their readers (the Kuwait mushaf's order)
 const RIW = {
-  warsh: {short: "ورش", long: "رواية ورش عن نافع من طريق الأزرق"},
-  shubah: {short: "شعبة", long: "رواية شعبة عن عاصم"}
+  qalun: {short: "قالون", long: "رواية قالون عن نافع", of: "عن نافع", reader: "nafi"},
+  warsh: {short: "ورش", long: "رواية ورش عن نافع من طريق الأزرق", of: "عن نافع", reader: "nafi"},
+  bazzi: {short: "البزي", long: "رواية البزي عن ابن كثير", of: "عن ابن كثير", reader: "ibnkathir"},
+  duri: {short: "الدوري", long: "رواية الدوري عن أبي عمرو", of: "عن أبي عمرو", reader: "abuamr"},
+  susi: {short: "السوسي", long: "رواية السوسي عن أبي عمرو", of: "عن أبي عمرو", reader: "abuamr"},
+  shubah: {short: "شعبة", long: "رواية شعبة عن عاصم", of: "عن عاصم", reader: "asim"},
+  hafs: {short: "حفص", long: "رواية حفص عن عاصم", of: "عن عاصم", reader: "asim"}
+};
+const READERS = [
+  {id: "nafi", name: "نافع المدني", short: "نافع", keys: ["qalun", "warsh"]},
+  {id: "ibnkathir", name: "ابن كثير المكي", short: "ابن كثير", keys: ["bazzi"]},
+  {id: "abuamr", name: "أبو عمرو البصري", short: "أبو عمرو", keys: ["duri", "susi"]},
+  {id: "asim", name: "عاصم الكوفي", short: "عاصم", keys: ["shubah", "hafs"]}
+];
+const RIW_NOTE = {
+  qalun: "القصر في المنفصل، والتسهيل والإدخال، وإسكان «هو» و«هي»", warsh: "النقل والإبدال والتقليل وصلة الميم قبل الهمز وتغليظ اللام",
+  bazzi: "صلة ميم الجمع وهاء الكناية، والقصر في المنفصل، والتسهيل", duri: "الإمالة والتقليل، والتسهيل والإدخال، والإدغام الصغير",
+  susi: "الإدغام الكبير، وإبدال الهمز الساكن، والإمالة والتقليل", shubah: "الإمالة في كلمات، وفرش الحروف",
+  hafs: "الأصل الذي تُقارن به الروايات؛ يُلوَّن فيه ما اختلفت فيه الروايات فرشاً"
 };
 const LAST_PAGE = 604;
 // extra stroke round each glyph, font units (2048 per em): thin, medium, bold (the default:
@@ -338,17 +400,19 @@ const store = {
   set(k, v) { try { localStorage.setItem("mushaf." + k, JSON.stringify(v)); } catch (e) {} }
 };
 const state = {
-  riwaya: store.get("riwaya", "warsh") === "shubah" ? "shubah" : "warsh",
+  riwaya: RIW[store.get("riwaya", "warsh")] ? store.get("riwaya", "warsh") : "warsh",
   page: Math.min(LAST_PAGE, Math.max(1, store.get("page", 1) | 0)),
   diff: store.get("diff", true) !== false,
   theme: store.get("theme", "auto"),
   weight: [0, 1, 2].includes(store.get("weight", 2)) ? store.get("weight", 2) : 2,
+  taqlil: store.get("taqlil", "filled") === "hollow" ? "hollow" : "filled",   // the Kuwait mushaf: one filled dot
   bars: false
 };
 const lineW = () => WEIGHTS[state.weight] || 0;
 
 /* ---------- Android app (when present) ---------- */
 const root = document.documentElement;
+root.setAttribute("dir", "rtl"); root.setAttribute("lang", "ar");     // the sheets too, wherever the page is hosted
 const bridge = window.AndroidBridge || null;
 function call(name, ...args) {
   try { return bridge && typeof bridge[name] === "function" ? bridge[name](...args) : undefined; } catch (_) { return undefined; }
@@ -441,45 +505,104 @@ function getBinary(name, b64name) {     // the file itself, or its bytes as base
   const names = window.MUSHAF_B64 ? [[b64name, "b64"], [name, "bin"]] : [[name, "bin"], [b64name, "b64"]];
   return fetchFirst(candidates(names)).then(({r, c}) => c.form === "bin" ? r.arrayBuffer() : r.text().then(fromBase64));
 }
+/* the glyph outlines of a font (one store for the riwayat set in it, shared) */
+const DISK_GID = 30000, RING_GID = 30001;
+const stores = {};
+function loadStore(name) {
+  if (!stores[name]) {
+    stores[name] = getJSON(name + ".paths.json").then(st => {
+      const cache = new Map();
+      st.get = gid => {
+        if (gid === RING_GID && state.taqlil === "filled") gid = DISK_GID;     // the Kuwait mushaf: one filled dot
+        let p = cache.get(gid);
+        if (p === undefined) { const d = st.paths[gid]; p = d ? new Path2D(d) : null; cache.set(gid, p); }
+        return p;
+      };
+      return st;
+    });
+    stores[name].catch(() => { delete stores[name]; });
+  }
+  return stores[name];
+}
+/* the flat text-only build: everything a riwayah needs in one .txt file */
+const packs = {};
+function loadPack(name) {
+  if (!(name in packs)) {
+    packs[name] = window.MUSHAF_FLAT ? getText(name + ".pack.txt").then(t => JSON.parse(t)) : Promise.resolve(null);
+    packs[name] = packs[name].catch(e => { if (window.MUSHAF_FLAT) packs[name + ":missing"] = e; return null; });
+  }
+  return packs[name];
+}
+function parseRuns(buf) {             // MSHF v1 (tools/build.py write_bin)
+  const dv = new DataView(buf);
+  const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+  if (magic !== "MSHF") throw new Error("bad data");
+  const nt = dv.getUint32(8, true), nw = dv.getUint32(12, true), ng = dv.getUint32(16, true);
+  let o = 20;
+  const adv = new Int32Array(buf, o, nt); o += 4 * nt;
+  const start = new Uint32Array(buf, o, nt + 1); o += 4 * (nt + 1);
+  const tokOf = new Uint16Array(buf, o, nw); o += 2 * nw;
+  o = (o + 3) & ~3;
+  const gl = new Int16Array(buf, o, ng * 3);
+  return {adv, start, tokOf, gl, nw};
+}
+function wordNumbers(meta, nw) {      // the shared word numbering (quran-text): pairs.numbers in tools/
+  const nb = meta.numbering || {missing: [], joined: []};
+  const missing = new Set(nb.missing), joined = new Map(nb.joined.map(j => [j[0], [j[1], j[2]]]));
+  const num = new Int32Array(nw), last = new Int32Array(nw);
+  let n = 1;
+  for (let p = 0; p < nw; p++) {
+    while (missing.has(n)) n++;
+    const j = joined.get(p);
+    if (j) { num[p] = j[0]; last[p] = j[1]; n = j[1] + 1; } else { num[p] = last[p] = n; n++; }
+  }
+  return {num, last};
+}
 const cache = {};
 function loadData(key) {
   if (!cache[key]) {
-    cache[key] = getJSON(key + ".json").then(meta => getBinary(key + ".bin", key + ".glyphs.txt").then(buf => [meta, buf]))
-    .then(([meta, buf]) => {
-      const dv = new DataView(buf);
-      const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
-      if (magic !== "MSHF") throw new Error("bad data");
-      const nt = dv.getUint32(8, true), nw = dv.getUint32(12, true), ng = dv.getUint32(16, true);
-      let o = 20;
-      const adv = new Int32Array(buf, o, nt); o += 4 * nt;
-      const start = new Uint32Array(buf, o, nt + 1); o += 4 * (nt + 1);
-      const tokOf = new Uint16Array(buf, o, nw); o += 2 * nw;
-      o = (o + 3) & ~3;
-      const gl = new Int16Array(buf, o, ng * 3);
+    cache[key] = loadPack(key).then(pk => pk
+      ? [pk.json, fromBase64(pk.glyphs), pk]
+      : getJSON(key + ".json").then(meta => getBinary(key + ".bin", key + ".glyphs.txt").then(buf => [meta, buf, null])))
+    .then(([meta, buf, pk]) => loadStore(meta.store).then(st => [meta, buf, pk, st]))
+    .then(([meta, buf, pk, st]) => {
+      const R = parseRuns(buf), nw = R.nw;
       const red = new Map();
       for (const k in meta.red) red.set(+k, new Set(meta.red[k]));
-      const paths = new Map();
-      const path = gid => {
-        let p = paths.get(gid);
-        if (p === undefined) { const d = meta.paths[gid]; p = d ? new Path2D(d) : null; paths.set(gid, p); }
-        return p;
-      };
       const ends = new Set();
       for (let k = 1; k < meta.ayah_starts.length; k++) ends.add(meta.ayah_starts[k] - 1);
       ends.add(nw - 1);
-      return {key, meta, adv, start, tokOf, gl, red, path, ends, words: null, layouts: new Map(),
-        nostroke: new Set(meta.nostroke || []), aya: new Set(meta.aya || [])};
+      return {key, meta, adv: R.adv, start: R.start, tokOf: R.tokOf, gl: R.gl, red, path: st.get, store: st, ends,
+        words: pk ? pk.words.split("\n") : null, pack: pk, layouts: new Map(), nums: null,
+        nostroke: new Set(meta.nostroke || []), aya: new Set(meta.aya || st.aya || [])};
     });
     cache[key].catch(() => { delete cache[key]; });
   }
   return cache[key];
 }
+const numOf = (D, p) => { if (!D.nums) D.nums = wordNumbers(D.meta, D.tokOf.length); return [D.nums.num[p], D.nums.last[p]]; };
 function loadWords(D) {           // the Unicode text of every printed word form (for selecting and copying)
+  if (D.words) return Promise.resolve(D);
   if (!D.wordsP) {
     D.wordsP = getText(D.key + ".words.txt").then(t => { D.words = t.split("\n"); return D; });
     D.wordsP.catch(() => { D.wordsP = null; });
   }
   return D.wordsP;
+}
+/* the readings of every word where the riwayat differ (tools/readings.py) */
+let khilafP = null;
+function loadKhilaf() {
+  if (!khilafP) {
+    khilafP = loadPack("khilaf").then(pk => pk
+      ? [pk.json, fromBase64(pk.glyphs)]
+      : getJSON("khilaf.json").then(m => getBinary("khilaf.bin", "khilaf.glyphs.txt").then(b => [m, b])))
+    .then(([m, buf]) => loadStore(m.store).then(st => {
+      const R = parseRuns(buf);
+      return {meta: m, adv: R.adv, start: R.start, gl: R.gl, path: st.get, nostroke: new Set(m.nostroke || []), aya: new Set()};
+    }));
+    khilafP.catch(() => { khilafP = null; });
+  }
+  return khilafP;
 }
 const wordText = (D, p) => D.words ? D.words[D.tokOf[p]] : "";
 
@@ -880,7 +1003,12 @@ class Pager {
         } else {
           lastTap = {t: now, x: e.clientX, y: e.clientY};
           clearTimeout(tapTimer);
-          tapTimer = setTimeout(() => { lastTap = null; setBars(!state.bars); }, TAP_WAIT);
+          const tx = e.clientX, ty = e.clientY;
+          tapTimer = setTimeout(() => {
+            lastTap = null;
+            if (!state.bars && this.tapRed(tx, ty)) return;
+            setBars(!state.bars);
+          }, TAP_WAIT);
         }
       }
       drag = false;
@@ -919,6 +1047,25 @@ class Pager {
     const sl = this.slots[1];
     sl.hl = range;
     this.render(sl, this.D, sl.page, "hl");
+  }
+  tapRed(x, y) {                              // a red word under the finger: its card
+    if (!state.diff || !this.D) return false;
+    const sl = this.slots[1], L = sl.layout;
+    if (!L) return false;
+    const r = sl.canvas.getBoundingClientRect();
+    const px = x - r.left, py = y - r.top, pad = L.fs * 0.12;
+    for (const ln of L.lines) {
+      if (py < ln.base - L.lh * 0.62 || py > ln.base + L.lh * 0.34) continue;
+      for (const t of ln.toks) {
+        if (px >= t.x - pad && px <= t.x + t.w + pad && this.D.red.has(t.p)) {
+          const a = ayaOf(this.D, t.p);
+          this.focusAya(a.range);
+          openInfo(this.D, t.p, a);
+          return true;
+        }
+      }
+    }
+    return false;
   }
   doubleTap(x, y) {
     const t = this.hit(x, y);
@@ -1078,7 +1225,8 @@ selBar.addEventListener("click", e => {
 /* ---------- sheets ---------- */
 const indexScrim = document.getElementById("indexScrim"), infoScrim = document.getElementById("infoScrim");
 const searchScrim = document.getElementById("searchScrim"), legendScrim = document.getElementById("legendScrim");
-const SCRIMS = [indexScrim, infoScrim, searchScrim, legendScrim];
+const riwScrim = document.getElementById("riwScrim");
+const SCRIMS = [indexScrim, infoScrim, searchScrim, legendScrim, riwScrim];
 let sheetOpen = false;
 const useHistory = !!window.MUSHAF_STANDALONE;   // Android back button closes a sheet
 let openedAt = 0;
@@ -1178,6 +1326,15 @@ document.getElementById("themeOpt").addEventListener("click", e => {
   if (!b) return;
   state.theme = b.dataset.themeSet; store.set("theme", state.theme); applyTheme();
 });
+function applyTaqlil() {
+  document.querySelectorAll("[data-taqlil]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.taqlil === state.taqlil)));
+  pager && pager.redrawAll();
+}
+document.getElementById("taqlilOpt").addEventListener("click", e => {
+  const b = e.target.closest("[data-taqlil]");
+  if (!b) return;
+  state.taqlil = b.dataset.taqlil; store.set("taqlil", state.taqlil); applyTaqlil();
+});
 function applyWeight() {
   document.querySelectorAll("[data-weight]").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.weight === state.weight)));
   relayout();
@@ -1189,81 +1346,194 @@ document.getElementById("weightOpt").addEventListener("click", e => {
 });
 
 /* word / aya info */
-let hafsFont = null;
-function loadHafsFont() {
-  if (!hafsFont) {
-    hafsFont = getBinary("hafs.ttf", "hafs.ttf.txt").then(buf => {
-      const f = new FontFace("KFGQPC Hafs", buf);
+let quranFont = null;
+function loadQuranFont() {            // the KFGQPC Mashriqi font, for text (search results)
+  if (!quranFont) {
+    quranFont = getBinary("quran.ttf", "quran.ttf.txt").then(buf => {
+      const f = new FontFace("KFGQPC Uthmanic", buf);
       return f.load().then(ff => { document.fonts.add(ff); return true; });
     }).catch(() => false);
   }
-  return hafsFont;
+  return quranFont;
 }
-/* the dabt signs and colours, explained (word info sheet and the legend) */
-const SIGNS = {
-  naql: ["النقل", "جرّةٌ مكانَ الهمزة التي نُقلت حركتها إلى الساكن قبلها: فوق الألف للفتح، وتحتها للكسر، وعلى يمينها للضم، وعلى السطر إن لم تكن للهمزة صورة."],
-  tashil: ["التسهيل", "نقطةٌ مطموسة مكانَ الهمزة بلا حركة: تُقرأ بين الهمزة والحرف المجانس لحركتها."],
-  ibdal: ["الإبدال", "النقطة المطموسة مع حركتها: تُبدَل الهمزةُ حرفاً متحركاً."],
-  ishmam: {warsh: ["الإشمام", "نقطةٌ مطموسة أمام السين: يُشَمّ كسرُها الضمَّ (سِيءَ، سِيئَتْ)."],
-           shubah: ["الإشمام", "نقطةٌ مطموسة أمام الدال: تُشَمّ الدالُ الساكنة الضمَّ في «مِنْ لَدْنِهِ» و«مِنْ لَدْنِي»."]},
-  taqlil: ["التقليل", "نقطةٌ مجوّفة تحت الحرف بدل الفتحة: يُقرأ بين الفتح والإمالة."],
-  imala: {warsh: ["الإمالة الكبرى", "نقطةٌ مطموسة مدوّرة تحت الحرف بدل الفتحة: يُمال الحرف إمالةً كبرى (هاء «طه» وحدها)."],
-          shubah: ["الإمالة الكبرى", "نقطةٌ مطموسة مدوّرة تحت الحرف بدل الفتحة: يُمال الحرف إمالةً كبرى (أدراك، رمى، أعمى، رأى، هار، ران، الر، حم، طه...)."]},
-  small: ["حرفٌ صغير", "واوٌ أو ياءٌ أو ألفٌ صغيرة مكانَ الهمزة الساكنة المبدلة حرفَ مدّ بعد همزة الوصل."],
+/* the kinds of difference from Hafs (tools/readings.py) and the signs of dabt, explained;
+   the signs as the Kuwait mushaf of the ten readings sets them (istilahat al-dabt) */
+const KINDS = {
+  farsh: ["فرش", "تختلف الكلمة نفسها في حروفها أو حركاتها أو بنيتها، وهو ما تذكره كتب القراءات في فرش الحروف."],
+  absent: ["بلا هذه الكلمة", "لا تثبت هذه الكلمة في هذه الرواية."],
+  absent_before: ["بلا كلمةٍ قبلها", "في رواية حفص قبل هذه الكلمة كلمةٌ لا تثبت في هذه الرواية، فلُوِّنت هذه الكلمة كلها، والقراءات أدناه في تلك الكلمة."],
+  added: ["زيادة كلمة", "كلمةٌ تثبت في هذه الرواية وليست في رواية حفص."],
+  naql: ["النقل", "تُنقل حركة الهمزة إلى الحرف الساكن قبلها وتُحذف الهمزة. علامته جرّةٌ مكان الهمزة: فوق الألف للفتح، وتحتها للكسر، وعلى يمينها للضم، وعلى السطر إن لم تكن للهمزة صورة."],
+  tashil: ["التسهيل", "تُنطق الهمزة بين الهمزة والحرف الذي يجانس حركتها. علامته نقطةٌ مطموسة مكانَ الهمزة بلا حركة."],
+  ibdal: ["الإبدال", "تُبدل الهمزة المتحركة حرفاً يجانس حركة ما قبلها. علامته في اصطلاح مصحف الكويت النقطةُ المطموسة مكانَ الهمزة مع إبقاء حركتها."],
+  ibdal_madd: ["إبدال الهمزة مدّاً", "تُبدل الهمزة حرفَ مدٍّ يجانس حركة ما قبلها، فتُقرأ ألفاً ممدودة أو واواً أو ياءً."],
+  ibdal_sakin: ["إبدال الهمزة الساكنة", "تُبدل الهمزة الساكنة حرفَ مدٍّ يجانس حركة ما قبلها (يُومِنون، يَاكُلون)، ويُكتب الحرف بلا همزة."],
+  small: ["حرفٌ صغير مكان الهمزة", "الهمزة الساكنة بعد همزة الوصل تُبدل حرفَ مدّ، ويُكتب صغيراً: واواً أو ياءً أو ألفاً."],
+  isqat: ["إسقاط الهمزة", "تسقط إحدى الهمزتين المتفقتين في الحركة من كلمتين (جَا أَجَلُهم)."],
+  idkhal: ["الإدخال", "ألفٌ تُدخَل بين الهمزتين في الكلمة الواحدة، تُمدّ بقدر حركتين."],
+  ishmam: {nafi: ["الإشمام", "يُشَمّ كسرُ السين الضمَّ في «سِيءَ» و«سِيئَتْ». علامته نقطةٌ مطموسة أمام الحرف."],
+           asim: ["الإشمام", "تُشَمّ الدالُ الساكنة الضمَّ في «مِنْ لَدْنِهِ» و«مِنْ لَدْنِي». علامته نقطةٌ مطموسة أمام الحرف."]},
+  imala: ["الإمالة الكبرى", "تُقرَّب الفتحة من الكسرة والألف من الياء. علامتها نقطةٌ مطموسة تحت الحرف بدل الفتحة."],
+  taqlil: ["التقليل", "إمالةٌ صغرى بين الفتح والإمالة الكبرى. علامته في مصحف الكويت نقطةٌ مطموسة تحت الحرف بدل الفتحة كالإمالة، ويمكن إظهارها مجوّفة من الإعدادات."],
+  ikhtilas: ["الاختلاس", "يُنطق ببعض الحركة (نحو ثلثيها). علامته نقطةٌ مطموسة فوق الحرف للفتحة والضمة، وتحته للكسرة."],
+  sila_mim: ["صلة ميم الجمع", "تُضمّ ميم الجمع وتُوصل بواوٍ لفظية (مكتوبة صغيرة) إذا وليها متحرك."],
+  mim_jam: ["ميم الجمع", "تختلف ميم الجمع في الوصل: حركتها أو صلتها."],
+  ha_kinaya: ["هاء الكناية", "تختلف هاء الضمير في الصلة أو القصر أو الإسكان."],
+  ya_idafa: ["ياء الإضافة", "تُفتح ياء المتكلم أو تُسكَّن."],
+  ya_zaida: ["الياءات الزوائد", "تثبت ياءٌ ليست في الرسم (مكتوبةً صغيرة)، وحفص يحذفها."],
+  qasr: ["قصر المدّ", "يُمدّ حرف المدّ حركتين (القصر)، وهو في حفص ممدود لهمزةٍ بعده (المدّ المنفصل)."],
+  idgham: ["الإدغام", "يُدغم الحرف الساكن في الحرف الذي بعده، فيُشدَّد الثاني."],
+  idgham_kabir: ["الإدغام الكبير", "يُسكَّن الحرف المتحرك ويُدغم في مثله أو مقاربه بعده."],
+  izhar: ["الإظهار", "يُظهَر الحرف الساكن في آخر الكلمة قبلها ولا يُدغم فيما بعده، وحفص يدغمه."],
   lam: ["تغليظ اللام", "اللام الحمراء مغلّظة (مفخّمة) عند الأزرق: مفتوحةٌ بعد صاد أو طاء أو ظاء مفتوحة أو ساكنة، وهي مرقّقة في حفص؛ والرسم واحد."],
-  red: ["الفرق عن حفص", "الحرف الذي تخالف فيه الروايةُ روايةَ حفص يُلوَّن بالأحمر مع علامته (حركته أو سكونه أو شدّته أو نقطته)، ولا تُلوَّن الكلمة كلها."],
-  whole: {warsh: ["الكلمة كلها بالأحمر", "إذا كان الخلاف حذفاً لا يبقى معه في الكلمة ما يُلوَّن لُوِّنت الكلمة كلها، كـ«مَلِكِ» مكانَ «مَالِكِ» في حفص."],
-          shubah: ["الكلمة كلها بالأحمر", "إذا كان الخلاف حذفاً لا يبقى معه في الكلمة ما يُلوَّن لُوِّنت الكلمة كلها، كـ«بَيْتِي» مكانَ «بَيْتِيَ» في حفص."]}
+  red: ["الفرق عن حفص", "الحرف الذي تخالف فيه الروايةُ روايةَ حفص يُلوَّن بالأحمر مع علامته (حركته أو سكونه أو شدّته أو نقطته)، والعلامة التي يحذفها تُلوَّن مع حرفها."],
+  whole: ["الكلمة كلها بالأحمر", "إذا كان في حفص حرفٌ أو كلمة ليست في الرواية لُوِّنت الكلمة كلها، كـ«مَلِكِ» مكانَ «مَٰلِكِ»."],
+  khilaf: ["مواضع الخلاف", "في رواية حفص يُلوَّن بالأحمر ما يقرؤه غير حفص من الروايات السبع كلمةً أخرى (فرشاً). وانقر مرتين على أي كلمة لترى قراءاتها في الروايات كلها، أصولاً وفرشاً."]
 };
-const signOf = (key, code) => { const v = SIGNS[code]; return !v ? null : Array.isArray(v) ? v : v[key]; };
+const kindOf = (key, code) => { const v = KINDS[code]; return !v ? null : Array.isArray(v) ? v : v[RIW[key] ? RIW[key].reader : "nafi"] || v.nafi; };
 const noteCodes = (D, p) => ((D.meta.notes || {})[p] || "").split(",").filter(Boolean);
 const esc = t => String(t).replace(/[&<>"]/g, ch => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[ch]));
+const NUM_WORD = ["", "", "قراءتان", "ثلاث قراءات", "أربع قراءات", "خمس قراءات", "ست قراءات", "سبع قراءات"];
+function whoOf(K, mask) {          // the riwayat of a reading, named as the Kuwait mushaf names them
+  const keys = K.meta.keys.filter((k, i) => mask & (1 << i)), parts = [];
+  for (const r of READERS) {
+    const ks = r.keys.filter(k => keys.includes(k));
+    if (!ks.length) continue;
+    if (ks.length === r.keys.length && r.keys.length > 1) parts.push(r.short);
+    else for (const k of ks) parts.push(RIW[k].short);
+  }
+  return parts;
+}
+function recOf(K, D, p) {          // the readings of the word at position p: [record, of the word before]
+  const [a, b] = numOf(D, p);
+  for (let n = a; n <= b; n++) { const r = K.meta.rec[n]; if (r) return [r, false]; }
+  // a word Hafs reads before it and this riwayah does not (huwa al-ghaniyy): that word's readings
+  const back = K.meta.rec[a - 1], bit = 1 << K.meta.keys.indexOf(D.key);
+  if (back && back.some(g => g[0] < 0 && (g[1] & bit))) return [back, true];
+  return [null, false];
+}
+function drawRunOn(canvas, S, start, end, adv, upem, red, hpx) {
+  // a glyph run (S: path, gl, nostroke, aya) on a canvas sized to it
+  const c = col(), dpr = Math.min(3, window.devicePixelRatio || 1);
+  hpx = hpx || 56;
+  const s = hpx / upem / 1.9, w = Math.max(8, adv * s) + 16;
+  canvas.style.width = w + "px"; canvas.style.height = hpx + "px";
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(hpx * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const lw = lineW();
+  ctx.lineWidth = lw; ctx.lineJoin = "round"; ctx.lineCap = "round";
+  const gl = S.gl;
+  let fill = null;
+  for (let k = start; k < end; k++) {
+    const gid = gl[3 * k], path = S.path(gid);
+    if (!path) continue;
+    const f = red && red.has(k - start) ? c.diff : c.ink;
+    if (f !== fill) { ctx.fillStyle = f; ctx.strokeStyle = f; fill = f; }
+    ctx.setTransform(dpr * s, 0, 0, -dpr * s, dpr * (8 + gl[3 * k + 1] * s), dpr * (hpx * 0.66 - gl[3 * k + 2] * s));
+    ctx.fill(path);
+    if (lw > 0 && !S.nostroke.has(gid)) ctx.stroke(path);
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+function drawWord(canvas, D, p) {
+  const tid = D.tokOf[p];
+  drawRunOn(canvas, D, D.start[tid], D.start[tid + 1], D.adv[tid], D.meta.upem, D.red.get(p));
+}
+function drawForm(canvas, K, fi, red, hpx) {
+  drawRunOn(canvas, K, K.start[fi], K.start[fi + 1], K.adv[fi], K.meta.upem, red ? new Set(red) : null, hpx);
+}
+function kindRows(D, codes) {
+  return codes.map(c => kindOf(D.key, c)).filter(Boolean)
+    .map(([t, d]) => '<div class="kind"><b>' + esc(t) + '</b><span>' + esc(d) + '</span></div>').join("");
+}
 
-let infoAya = null;
+let infoAya = null, infoSeq = 0;
 function openInfo(D, p, a) {
   infoAya = a;
+  const seq = ++infoSeq;
   const ref = document.getElementById("infoRef");
   const sname = D.meta.suras[(a.sura || 1) - 1].name;
-  ref.textContent = a.basmala ? "البسملة · سورة الفاتحة · " + RIW[D.key].long : "سورة " + sname + " · الآية " + ar(a.aya) + " · " + RIW[D.key].long;
-  const cmp = document.getElementById("infoCmp"), note = document.getElementById("infoNote"), signs = document.getElementById("infoSigns");
-  const hw = D.meta.hafs[p];
-  signs.innerHTML = "";
-  if (hw && D.red.has(p)) {
-    cmp.hidden = false;
-    document.getElementById("infoRLabel").textContent = RIW[D.key].short;
-    document.getElementById("infoHafs").textContent = hw;
-    loadHafsFont();
-    drawWord(document.getElementById("infoCanvas"), D, p);
-    signs.innerHTML = noteCodes(D, p).map(code => signOf(D.key, code)).filter(Boolean)
-      .map(([t, d]) => "<p><b>" + esc(t) + ":</b> " + esc(d) + "</p>").join("");
-    note.textContent = "بالأحمر: الحرف الذي تخالف فيه " + RIW[D.key].short + " روايةَ حفص مع علامته. إذا كان الخلاف حذفاً لا يبقى معه ما يُلوَّن لُوِّنت الكلمة كلها.";
-  } else {
-    cmp.hidden = true;
-    note.textContent = "لا فرق في هذه الكلمة بين " + RIW[D.key].short + " وحفص في رسم المصحف.";
-  }
+  ref.textContent = (a.basmala ? "البسملة · سورة الفاتحة" : "سورة " + sname + " · الآية " + ar(a.aya)) + " · " + RIW[D.key].long;
+  const cmp = document.getElementById("infoCmp"), note = document.getElementById("infoNote");
+  const kindsH = document.getElementById("infoKindsH"), kinds = document.getElementById("infoKinds");
+  const readsH = document.getElementById("infoReadsH"), reads = document.getElementById("infoReads");
+  const hcan = document.getElementById("infoHafs"), hlab = document.getElementById("infoHLabel");
+  const isHafs = D.key === "hafs", red = D.red.has(p);
+  document.getElementById("infoSigns").innerHTML = "";
+  cmp.hidden = false;
+  document.getElementById("infoRLabel").textContent = RIW[D.key].short;
+  drawWord(document.getElementById("infoCanvas"), D, p);
+  hcan.hidden = hlab.hidden = true;
+  kinds.innerHTML = ""; kindsH.hidden = true;
+  reads.innerHTML = ""; reads.hidden = readsH.hidden = true;
+  note.textContent = "جارٍ تحميل القراءات…";
+  // the word's own notes: Warsh's heavy lam, the signs of dabt
+  const own = noteCodes(D, p).filter(c => c === "lam");
   document.getElementById("infoCopy").hidden = !D.words;
   openSheet(infoScrim);
+  loadKhilaf().then(K => {
+    if (seq !== infoSeq) return;
+    const [rec, before] = recOf(K, D, p);
+    const meBit = 1 << K.meta.keys.indexOf(D.key);
+    if (!rec) {
+      if (own.length) { kinds.innerHTML = kindRows(D, own); kindsH.hidden = false; }
+      note.textContent = own.length ? "الرسم واحد في الروايات السبع، والخلاف في النطق." :
+        "تتفق الروايات السبع في هذه الكلمة رسماً وضبطاً" + (isHafs ? "." : "؛ لا فرق فيها بين " + RIW[D.key].short + " وحفص.");
+      return;
+    }
+    const hafsBit = 1 << K.meta.keys.indexOf("hafs");
+    const hg = rec.find(g => g[1] & hafsBit), mine = rec.find(g => g[1] & meBit);
+    if (!isHafs && hg && hg[0] >= 0) {
+      hcan.hidden = hlab.hidden = false;
+      hlab.textContent = before ? "حفص · قبلها" : "حفص";
+      drawForm(hcan, K, hg[0], null);
+    }
+    if (!isHafs && mine) {
+      const codes = (mine[2] ? mine[2].split(",") : []).map(c => before && c === "absent" ? "absent_before" : c).concat(own);
+      if (codes.length) { kinds.innerHTML = kindRows(D, [...new Set(codes)]); kindsH.hidden = false; }
+    } else if (!isHafs && own.length) { kinds.innerHTML = kindRows(D, own); kindsH.hidden = false; }
+    // the readings, the Hafs reading first, as the margin of the Kuwait mushaf lists them
+    readsH.textContent = (before ? "القراءات في الكلمة التي قبلها" : "القراءات في الكلمة") + " · فيها " + (NUM_WORD[rec.length] || ar(rec.length) + " قراءات");
+    readsH.hidden = false; reads.hidden = false;
+    rec.forEach((g, i) => {
+      const row = document.createElement("div");
+      row.className = "rd" + (g[1] & meBit ? " mine" : "");
+      const idx = document.createElement("span"); idx.className = "i"; idx.textContent = ar(i + 1);
+      row.appendChild(idx);
+      if (g[0] >= 0) {
+        const cv = document.createElement("canvas"); cv.setAttribute("aria-hidden", "true");
+        row.appendChild(cv);
+        drawForm(cv, K, g[0], g[1] & hafsBit ? null : g[3], 46);
+      } else {
+        const none = document.createElement("span"); none.className = "none"; none.textContent = "بلا الكلمة";
+        row.appendChild(none);
+      }
+      const who = document.createElement("span"); who.className = "who";
+      const names = whoOf(K, g[1]).join("، ");
+      const ks = g[2] && g[0] >= 0 && !(g[1] & hafsBit) ? g[2].split(",").map(c => (kindOf(D.key, c) || [c])[0]).join("، ") : "";
+      who.innerHTML = esc(names) + (g[1] & meBit ? ' <em>· ' + (isHafs ? "حفص" : "روايتك") + '</em>' : "") +
+        (ks ? '<br><span class="meta" style="color:var(--muted);font-size:12px">' + esc(ks) + '</span>' : "");
+      row.appendChild(who);
+      reads.appendChild(row);
+    });
+    note.textContent = (isHafs ? "" : "بالأحمر في كل قراءة: ما تخالف فيه قراءةَ حفص. ") +
+      "الروايات السبع: قالون وورش عن نافع، والبزي عن ابن كثير، والدوري والسوسي عن أبي عمرو، وشعبة وحفص عن عاصم (نافع = قالون وورش، أبو عمرو = الدوري والسوسي، عاصم = شعبة وحفص)؛ ولا تشمل بقية القراءات العشر.";
+  }).catch(() => { if (seq === infoSeq) note.textContent = red ? "تعذّر تحميل القراءات." : ""; });
 }
 document.getElementById("infoCopy").addEventListener("click", () => {
   const D = pager && pager.D;
   if (D && infoAya) copyText(ayaText(D, infoAya));
 });
-function drawWord(canvas, D, p) {
-  const c = col(), dpr = Math.min(3, window.devicePixelRatio || 1);
-  const hpx = 56, s = hpx / D.meta.upem / 1.9;
-  const tid = D.tokOf[p], w = D.adv[tid] * s + 16;
-  canvas.style.width = w + "px"; canvas.style.height = hpx + "px";
-  canvas.width = Math.round(w * dpr); canvas.height = Math.round(hpx * dpr);
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.lineWidth = lineW(); ctx.lineJoin = "round";
-  drawToken(ctx, D, tid, 8, hpx * 0.66, s, 1, D.red.get(p), c, dpr, lineW() > 0);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-}
 
 /* ---------- the dabt legend: every sign with an example from the mushaf ---------- */
-const LEGEND = {warsh: ["red", "whole", "naql", "tashil", "ibdal", "ishmam", "taqlil", "imala", "small", "lam"],
-                shubah: ["red", "whole", "imala", "ishmam"]};
+const SIGN_ORDER = ["naql", "tashil", "ibdal", "small", "ishmam", "imala", "taqlil", "ikhtilas", "lam"];
+function legendCodes(D) {
+  if (D.key === "hafs") return ["khilaf"];
+  const seen = new Set();
+  for (const k in D.meta.notes) for (const c of D.meta.notes[k].split(",")) seen.add(c);
+  return ["red", ...(seen.has("whole") ? ["whole"] : []), ...SIGN_ORDER.filter(c => seen.has(c))];
+}
 function firstWith(D, test) {
   const n = D.meta.notes || {};
   let best = null;
@@ -1288,10 +1558,11 @@ function openLegend() {
   if (!D) return;
   const list = document.getElementById("legendList");
   list.textContent = "";
-  for (const code of LEGEND[D.key]) {
-    const sg = signOf(D.key, code);
+  for (const code of legendCodes(D)) {
+    const sg = kindOf(D.key, code);
     if (!sg) continue;
     const p = code === "red" ? firstWith(D, (k, c) => !c.length && D.meta.hafs[k] && !(D.red.get(k).size > 6))
+      : code === "khilaf" ? firstWith(D, () => true)
       : code === "whole" ? firstWith(D, (k, c) => c.includes("whole"))
       : firstWith(D, (k, c) => c.includes(code));
     const row = document.createElement("button");
@@ -1345,7 +1616,7 @@ const noAlif = t => t.replace(/ا/g, "");
 function loadSearch(D) {
   if (!D.searchP) {
     D.searchP = Promise.all([
-      getText(D.key + ".search.txt"),
+      D.pack && typeof D.pack.search === "string" ? Promise.resolve(D.pack.search) : getText(D.key + ".search.txt"),
       loadWords(D)
     ]).then(([t]) => {
       const imlai = t.split("\n");
@@ -1431,8 +1702,8 @@ function setSearchMode(m) {
   searchMode = m; store.set("searchMode", m);
   document.querySelectorAll("#searchModes [data-mode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
 }
-const DISPLAY = {"ࡶ": "ا۬", "ࡹ": "اٜ", "ࢇ": "ـ۬"};
-const shownWord = (D, p) => wordText(D, p).replace(/[ࡶࡹࢇ]/g, ch => DISPLAY[ch]);
+const DISPLAY = {"\u0878": "\u0627\u06EC", "\u06EA": "\u065C"};   // the tas-hil alif of a damma; the taqlil dot
+const shownWord = (D, p) => wordText(D, p).replace(/[\u0878\u06EA]/g, ch => DISPLAY[ch]);
 function resultHTML(D, r, i) {
   const a = r.aya, [s0, s1] = a.range;
   let from = s0, to = s1;
@@ -1520,7 +1791,7 @@ function doSearch() {
 }
 function openSearch() {
   if (!pager || !pager.D) return;
-  loadHafsFont();
+  loadQuranFont();
   openSheet(searchScrim);
   if (found && found.key !== pager.D.key) { found = null; }
   if (!found) doSearch();
@@ -1590,7 +1861,9 @@ window.addEventListener("keydown", e => {
 const loading = document.getElementById("loading"), loadingText = document.getElementById("loadingText");
 async function selectRiwaya(key) {
   state.riwaya = key; store.set("riwaya", key);
-  document.querySelectorAll(".seg [data-r]").forEach(b => b.setAttribute("aria-checked", String(b.dataset.r === key)));
+  document.getElementById("riwName").textContent = RIW[key].short;
+  document.getElementById("riwReader").textContent = RIW[key].of;
+  document.getElementById("riwBtn").setAttribute("aria-label", "الرواية: " + RIW[key].long + ". اختيار الرواية");
   const ready = cache[key] && cache[key].done;
   if (!ready) { loading.hidden = false; loadingText.textContent = "جارٍ تحميل " + RIW[key].long + "…"; }
   try {
@@ -1604,29 +1877,48 @@ async function selectRiwaya(key) {
     closeFind();
     if (found && found.key !== key) found = null;
     document.getElementById("about").innerHTML =
-      "النص وتقسيم الصفحات والأسطر والخطوط: مجمع الملك فهد لطباعة المصحف الشريف (الإصدار ٣٫٠، عبر أرشيف quran-text)، " +
-      "على صفحات مصحف المدينة النبوية: " + ar(604) + " صفحة في كل منها " + ar(15) + " سطراً. " +
-      "رواية ورش مكتوبة بالضبط المشرقي بخط المجمع المشرقي، دون تغيير في الرسم أو القراءة، وعلى اصطلاحات ضبط المصاحف المشرقية: " +
-      "جرّةٌ مكان الهمزة المنقولة حركتُها (فوق الألف للفتح، وتحتها للكسر، وعلى يمينها للضم، وعلى السطر إن لم تكن لها صورة)، " +
-      "ونقطةٌ مطموسة مكان الهمزة المسهّلة بلا حركة، ومعها الحركة في الإبدال، وأمام السين في الإشمام، " +
-      "ونقطةٌ مجوّفة تحت الحرف للتقليل، ونقطةٌ مطموسة مدوّرة تحته للإمالة الكبرى (هاء «طه»)، وحرفٌ صغير مكان الهمزة الساكنة المبدلة بعد همزة الوصل. " +
-      "ورواية شعبة بخط المجمع لروايتها وضبطها، على الاصطلاحات نفسها: نقطةٌ مطموسة مدوّرة تحت الحرف للإمالة الكبرى (أدراك، رمى، أعمى، رأى، هار، ران، الر، حم، طه...)، " +
-      "ونقطةٌ أمام الدال للإشمام في «مِنْ لَدْنِهِ» و«مِنْ لَدْنِي». " +
-      "الأحمر: الحرف الذي يخالف فيه نصُّ الرواية نصَّ رواية حفص في المصدر نفسه، مع علامته؛ والكلمة كلها إذا كان الخلاف حذفاً؛ " +
-      "ومعه في ورش اللام التي يغلّظها الأزرق (كلام «الصلاة» و«ظلموا» و«مطلع»). ولا يُلوَّن ما لا يظهر في الرسم كمدّ البدل وترقيق الراءات. " +
-      "الأحزاب: علامات ۞ في مصحف المجمع (أرباع في شعبة، وأثمان على قسمة المغاربة في ورش). " +
-      "انقر الصفحة لإظهار الأشرطة، واضغط مطوّلاً على كلمة لتحديد النص ونسخه، وانقر مرتين على كلمة لعرض آيتها والفرق عن حفص.";
+      "النص وتقسيم الصفحات والأسطر: مجمع الملك فهد لطباعة المصحف الشريف (الإصدار ٣٫٠، والدوري ٢٫٠، عبر أرشيف quran-text)، " +
+      "على صفحات مصحف المدينة النبوية: " + ar(604) + " صفحة في كل منها " + ar(15) + " سطراً، لكل رواية صفحاتها كما في مصحفها. " +
+      "الروايات السبع كلها بخطٍّ واحد: خط المجمع المشرقي المرسوم على خط عثمان طه، وبضبطٍ واحد: الضبط المشرقي لمصحف المدينة، " +
+      "وعلامات القراءات على اصطلاحات مصحف دولة الكويت للقراءات العشر: نقطةٌ مطموسة تحت الحرف بدل الفتحة للإمالة الكبرى والتقليل " +
+      "(ويمكن إظهار التقليل بنقطة مجوّفة من الإعدادات)، وأمام الحرف للإشمام، وفوق الحرف للاختلاس في الفتحة والضمة وتحته في الكسرة، " +
+      "ومكانَ الهمزة مع حركتها للإبدال وبلا حركة للتسهيل؛ وجرّةٌ مكان الهمزة المنقولة حركتُها في ورش. ولا تغيير في رسم ولا قراءة. " +
+      "الأحمر: الحرف الذي يخالف فيه نصُّ الرواية نصَّ رواية حفص مع علامته، والعلامة التي يحذفها مع حرفها، والكلمة كلها إذا كان في حفص حرفٌ أو كلمة ليست فيها؛ " +
+      "ومعه في ورش اللام التي يغلّظها الأزرق. ولا يُلوَّن ما لا يظهر في الرسم كمدّ البدل وترقيق الراءات. " +
+      "وفي رواية حفص يُلوَّن ما قرأه غيرُ حفص من الروايات السبع كلمةً أخرى. " +
+      "شرح الفرق والقراءات: محسوبٌ من نصوص الروايات السبع في هذا التطبيق، على طريقة حواشي مصحف الكويت، ولا يشمل بقية القراءات العشر. " +
+      "الأحزاب: علامات ۞ في مصحف كل رواية (أرباع في حفص وشعبة والبزي، وأثمان في قالون وورش والدوري والسوسي). " +
+      "انقر الصفحة لإظهار الأشرطة، وانقر الكلمة الحمراء لشرح الفرق وقراءاتها، وانقر مرتين على أي كلمة لعرض قراءاتها، واضغط مطوّلاً لتحديد النص ونسخه.";
   } catch (err) {
     loading.hidden = false;
-    loadingText.textContent = err && err.missing
-      ? "تعذّر تحميل بيانات المصحف: لم يوجد الملف «" + err.missing + "» (ولا «" + err.missing.replace(/\.(json|bin|ttf)$/, m => m === ".bin" ? ".glyphs.txt" : m + ".txt") +
-        "») في مجلد data ولا بجانب الصفحة. ارفع ملفات البيانات كلها مع index.html ثم أعد فتح الصفحة."
+    let missing = err && err.missing;
+    if (missing && window.MUSHAF_FLAT) missing = /\.paths\.json$/.test(missing) ? missing + ".txt" : key + ".pack.txt";
+    loadingText.textContent = missing
+      ? "تعذّر تحميل بيانات المصحف: لم يوجد الملف «" + missing + "»" + (window.MUSHAF_FLAT ? "" : " (ولا «" + missing.replace(/\.(json|bin|ttf)$/, m => m === ".bin" ? ".glyphs.txt" : m + ".txt") + "»)") +
+        " في مجلد data ولا بجانب الصفحة. ارفع ملفات البيانات كلها مع index.html ثم أعد فتح الصفحة."
       : "تعذّر تحميل بيانات المصحف. تحقّق من الاتصال ثم أعد فتح التطبيق.";
   }
 }
-document.querySelector(".seg").addEventListener("click", e => {
+function renderRiwList() {
+  let html = "";
+  for (const r of READERS) {
+    html += '<div class="rgroup">' + r.name + '</div>';
+    for (const k of r.keys) {
+      const on = k === state.riwaya;
+      html += '<button class="rrow" role="radio" aria-checked="' + on + '" data-r="' + k + '"><span class="t">' + RIW[k].short +
+        (k === "warsh" ? ' <span style="font-weight:400;font-size:13px;color:var(--muted)">من طريق الأزرق</span>' : "") +
+        '</span><span class="ck"></span><span class="d">' + RIW_NOTE[k] + '</span></button>';
+    }
+  }
+  document.getElementById("riwList").innerHTML = html;
+}
+function openRiw() { renderRiwList(); openSheet(riwScrim); }
+document.getElementById("riwBtn").addEventListener("click", openRiw);
+document.getElementById("riwList").addEventListener("click", e => {
   const b = e.target.closest("[data-r]");
-  if (b && b.dataset.r !== state.riwaya) selectRiwaya(b.dataset.r);
+  if (!b) return;
+  closeSheets();
+  if (b.dataset.r !== state.riwaya) selectRiwaya(b.dataset.r);
 });
 const diffBtn = document.getElementById("diffBtn");
 function applyDiff() {
@@ -1657,13 +1949,14 @@ if (!bridge && (document.fullscreenEnabled || document.webkitFullscreenEnabled))
 /* ---------- start ---------- */
 pager = new Pager();
 window.__mushaf = {pager, state, setBars, textOf, selectedWords, ayaText, ayaOf, loadSearch, runSearch, openSearch, goFound, fold,
-  pageOf, openLegend, get found() { return found; }};
+  pageOf, openLegend, openInfo, loadKhilaf, selectRiwaya, numOf, recOf, openRiw, get found() { return found; }};
 if (bridge) {
   const v = String(call("getInsets") || "").split(",");
   if (v.length === 2) setInsets(v[0], v[1]);
 }
 applyTheme();
 applyWeight();
+applyTaqlil();
 diffBtn.setAttribute("aria-pressed", String(state.diff));
 setBars(false);
 let rz = 0;
@@ -1672,15 +1965,15 @@ window.addEventListener("resize", () => {
   rz = requestAnimationFrame(() => { relayout(); if (state.bars) root.style.setProperty("--bbh", bottomBar.offsetHeight + "px"); });
 });
 selectRiwaya(state.riwaya).then(() => {
+  // the readings of the words, for the cards, ready before the first tap
+  setTimeout(() => { loadKhilaf().catch(() => {}); }, 5000);
   if (!store.get("hinted", false) && pager.D) {
-    store.set("hinted", true); store.set("seen14", true);
-    toast("انقر الصفحة لإظهار الأشرطة · اضغط مطوّلاً على كلمة لتحديدها ونسخها · انقر مرتين على كلمة لعرض الفرق عن حفص", 6500);
-  } else if (!store.get("seen14", false) && pager.D) {
-    store.set("seen14", true);
-    toast("جديد: البحث (العدسة في الشريط العلوي) · علامات الضبط لشعبة · خط أعرض وأوضح، ويمكن تغييره من الفهرس", 6500);
+    store.set("hinted", true); store.set("seen15", true);
+    toast("انقر الصفحة لإظهار الأشرطة · انقر الكلمة الحمراء لشرح الفرق عن حفص وقراءاتها · اضغط مطوّلاً على كلمة لتحديدها ونسخها", 6500);
+  } else if (!store.get("seen15", false) && pager.D) {
+    store.set("seen15", true);
+    toast("جديد: سبع روايات (من زر الرواية في الأعلى) · انقر الكلمة الحمراء لشرح الفرق وقراءاتها · ضبط مصحف الكويت", 7000);
   }
-  const other = state.riwaya === "warsh" ? "shubah" : "warsh";
-  setTimeout(() => loadData(other).then(() => { cache[other].done = true; }).catch(() => {}), 1500);
 });
 if ("serviceWorker" in navigator && location.protocol === "https:" && window.MUSHAF_SW) {
   navigator.serviceWorker.register("sw.js").catch(() => {});

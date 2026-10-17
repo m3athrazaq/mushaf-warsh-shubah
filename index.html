@@ -1501,26 +1501,35 @@ function kindRows(D, codes) {
 /* ---------- listening: the aya in each riwayah, from the recitations of mp3quran.net ----------
    Whole-sura recordings with the time of every aya (their ayat_timing API).  Every read below was
    checked sura by sura against the app's counts: its ayat are the riwayah's own count, save where
-   `alt` names the count its timing follows in one sura (al-Mulk), and `fatiha` shifts the aya labels
-   of al-Fatiha (an unnumbered opening before the first aya).  Only the aya can be played, not the
-   word: the recordings are timed by aya. */
+   `alt` names the count its timing follows in one sura (al-Mulk), and `shift` the suras whose aya
+   labels start at 0 for the first aya (label = aya + shift).  The length of every timed aya was
+   then compared with the same words in the other recordings, and the outliers listened for in the
+   audio itself: `bad` holds the ayat whose recording has a long silent gap (al-Husary's Warsh) or
+   is cut short (al-Husary's al-Duri: the end of al-Zumar, al-A'raf 40).  Such an aya is played by
+   the riwayah's next reciter, or not at all.  (A recording whose timing did not follow its pauses
+   in many suras, al-Dokali's Qalun, was left out.)  Only the aya can be played, not the word: the
+   recordings are timed by aya. */
 const AUDIO_ON = !window.MUSHAF_B64;        // the claude.ai artifact cannot reach another site
 const MP3Q_CDN = "https://cdn.mp3quran.net/audio/", MP3Q_API = "https://www.mp3quran.net/api/v3/ayat_timing";
 const RECITERS = {
   qalun: [{id: 270, name: "محمود خليل الحصري", short: "الحصري", dir: "mahmoud-husary/r5"},
-          {id: 75, name: "علي بن عبدالرحمن الحذيفي", short: "الحذيفي", dir: "ali-hudhaifi/r2"},
-          {id: 208, name: "الدوكالي محمد العالم", short: "الدوكالي", dir: "dokali-alim/r1"}],
-  warsh: [{id: 120, name: "محمود خليل الحصري", short: "الحصري", dir: "mahmoud-husary/r3"},
-          {id: 14, name: "ياسين الجزائري", short: "الجزائري", dir: "yassen-jazairi/r1"},
+          {id: 75, name: "علي بن عبدالرحمن الحذيفي", short: "الحذيفي", dir: "ali-hudhaifi/r2"}],
+  warsh: [{id: 120, name: "محمود خليل الحصري", short: "الحصري", dir: "mahmoud-husary/r3",
+           bad: {2: [75, 76, 194, 195], 3: [132, 133], 4: [35, 36, 145, 146], 5: [66, 67], 6: [70, 71],
+                 7: [35, 36, 180, 181], 9: [33, 34], 11: [47, 48], 12: [71, 72], 14: [53, 54], 16: [16, 110, 111],
+                 18: [31], 20: [51, 52], 22: [2, 3], 23: [106, 107], 25: [67, 68], 27: [60, 61], 29: [26, 27],
+                 35: [4, 5], 40: [33, 34], 42: [45, 46], 46: [24, 25], 51: [42, 43], 57: [14, 15], 64: [15, 16]}},
           {id: 16, name: "العيون الكوشي", short: "الكوشي", dir: "laayoun-kouchi/r1"},
+          {id: 14, name: "ياسين الجزائري", short: "الجزائري", dir: "yassen-jazairi/r1"},
           {id: 80, name: "عمر القزابري", short: "القزابري", dir: "omar-kazabri/r1"}],
   bazzi: [{id: 296, name: "عكاشة كميني", short: "كميني", dir: "okasha-kameny/r2"}],
-  duri: [{id: 269, name: "محمود خليل الحصري", short: "الحصري", dir: "mahmoud-husary/r4", alt: {67: "qalun"}}],
+  duri: [{id: 269, name: "محمود خليل الحصري", short: "الحصري", dir: "mahmoud-husary/r4", alt: {67: "qalun"},
+          bad: {7: [40], 39: [69, 70, 71, 72]}}],
   susi: [{id: 65, name: "عبدالرشيد صوفي", short: "صوفي", dir: "abdulrasheed-sufi/r2", alt: {67: "hafs"}}],
   shubah: [{id: 305, name: "علي بن عبدالرحمن الحذيفي", short: "الحذيفي", dir: "ali-hudhaifi/r3"}],
-  hafs: [{id: 118, name: "محمود خليل الحصري", short: "الحصري", dir: "mahmoud-husary/r1", fatiha: -1},
+  hafs: [{id: 118, name: "محمود خليل الحصري", short: "الحصري", dir: "mahmoud-husary/r1", shift: {1: -1}},
          {id: 258, name: "عبدالرشيد صوفي", short: "صوفي", dir: "abdulrasheed-sufi/r3"},
-         {id: 112, name: "محمد صديق المنشاوي", short: "المنشاوي", dir: "muhammad-minshawi/r1"},
+         {id: 112, name: "محمد صديق المنشاوي", short: "المنشاوي", dir: "muhammad-minshawi/r1", shift: {9: -1}},
          {id: 123, name: "مشاري العفاسي", short: "العفاسي", dir: "mishary-alafasy/r1"}]
 };
 function rcPick(key) {
@@ -1561,19 +1570,27 @@ function timingOf(read, sura) {
   return timings.get(k);
 }
 function segOf(rc, t, sura, aya) {   // [start, end] in ms of the aya in the sura's recording
-  if (sura === 1 && rc.fatiha) aya += rc.fatiha;
+  if (rc.shift && rc.shift[sura]) aya += rc.shift[sura];
   const e = t.find(x => x[0] === aya);
   if (e) return [e[1], e[2]];
   if (aya <= 0) { const f = t.find(x => x[0] === 1); return f ? [0, f[1]] : null; }   // the opening before the first aya
   return null;
 }
-let player = null, playing = null;
+let player = null, playing = null, stopTimer = 0;
+function stopTick() {                // stop at the aya's end itself, not at the next timeupdate (a quarter second apart)
+  stopTimer = 0;
+  if (!playing || player.paused) return;
+  const left = playing.end - player.currentTime;
+  if (left <= 0.03) stopListen();
+  else if (left < 0.45) stopTimer = setTimeout(stopTick, left * 1000);
+}
 function audioEl() {
   if (!player) {
     player = new Audio();
     player.preload = "auto";
-    player.addEventListener("timeupdate", () => { if (playing && player.currentTime >= playing.end) stopListen(); });
+    player.addEventListener("timeupdate", () => { if (!stopTimer) stopTick(); });
     player.addEventListener("ended", () => stopListen());
+    player.addEventListener("pause", () => { if (playing && player.paused) stopListen(); });   // paused from outside: the lock screen, a call
     player.addEventListener("loadedmetadata", () => {
       if (playing && Math.abs(player.currentTime - playing.start) > 0.6) player.currentTime = playing.start;
     });
@@ -1588,8 +1605,11 @@ function audioEl() {
   return player;
 }
 function stopListen() {
+  clearTimeout(stopTimer); stopTimer = 0;
+  const p = playing;
+  playing = null;
   if (player) player.pause();
-  if (playing) { playing.btn.classList.remove("on"); playing.btn.setAttribute("aria-pressed", "false"); playing = null; }
+  if (p) { p.btn.classList.remove("on"); p.btn.setAttribute("aria-pressed", "false"); }
 }
 function startListen(btn) {
   if (playing && playing.btn === btn) { stopListen(); return; }
@@ -1601,8 +1621,13 @@ function startListen(btn) {
   const s = job.seg[0] / 1000, e = job.seg[1] / 1000;
   playing = {btn, start: s, end: e};
   btn.classList.remove("err"); btn.classList.add("on"); btn.setAttribute("aria-pressed", "true");
+  // the start only in the address: an end there would outlive a later seek in the same file
   if (el.dataset.url === url && el.readyState >= 1) el.currentTime = s;
-  else { el.dataset.url = url; el.src = url + "#t=" + s.toFixed(2) + "," + e.toFixed(2); }
+  else { el.dataset.url = url; el.src = url + "#t=" + s.toFixed(2); }
+  try {                              // the lock screen and the control centre name the aya, not the file
+    if ("mediaSession" in navigator && window.MediaMetadata)
+      navigator.mediaSession.metadata = new MediaMetadata({title: job.title, artist: job.rc.name, album: "مصحف الروايات"});
+  } catch (_) {}
   const pr = el.play();              // in the tap itself (iPhone and Android ask for a user gesture)
   if (pr && pr.catch) pr.catch(() => {
     if (!playing || playing.btn !== btn) return;
@@ -1613,16 +1638,18 @@ function startListen(btn) {
 }
 const ICON_PLAY = '<svg class="ic-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
 const ICON_STOP = '<svg class="ic-stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor"/></svg>';
-function listenButton(label, rc, key, K, n, seq) {
+function listenButton(label, rc, key, K, n, seq, suras) {
   const b = document.createElement("button");
   b.type = "button"; b.className = "play wait";
   b.setAttribute("aria-pressed", "false");
   b.innerHTML = ICON_PLAY + ICON_STOP + "<span>" + esc(label) + "</span>";
-  const a = listenTarget(K, key, rc, n);
+  const a = listenTarget(K, key, rc, n), own = ayaIn(K, key, n);
+  const title = (own.aya ? "سورة " + suras[own.sura - 1].name + " · الآية " + ar(own.aya) : "البسملة · سورة الفاتحة") +
+    " · " + RIW[key].long;
   const prepare = () => timingOf(rc.id, a.sura).then(t => {
     if (seq !== infoSeq) return;
     const seg = segOf(rc, t, a.sura, a.aya);
-    b._job = {rc, sura: a.sura, seg};
+    b._job = {rc, sura: a.sura, seg, title};
     b.classList.remove("wait", "err");
     if (!seg) { b.disabled = true; b.title = "لا توقيت لهذه الآية في التسجيل"; }
   }).catch(() => { if (seq === infoSeq) { b.classList.remove("wait"); b.classList.add("err"); } });
@@ -1633,23 +1660,44 @@ function listenButton(label, rc, key, K, n, seq) {
   });
   return b;
 }
+function soundAt(rc, K, key, n) {    // the reciter's recording of the word's aya has no known flaw
+  const a = listenTarget(K, key, rc, n);
+  return !(rc.bad && rc.bad[a.sura] && rc.bad[a.sura].includes(a.aya));
+}
+function reciterFor(K, key, n, pref) {   // the chosen reciter, or the riwayah's next one with a sound recording of the aya
+  return [pref, ...RECITERS[key].filter(r => r !== pref)].find(r => soundAt(r, K, key, n)) || null;
+}
 function setupListen(K, D, p, rec, seq) {
   const box = document.getElementById("infoListen"), row = document.getElementById("infoListenRow");
   row.innerHTML = "";
   box.hidden = true;
   if (!AUDIO_ON || !K.meta.ayat) return;
   const n = numOf(D, p)[0], keys = [D.key];
+  const prefOf = k => k === "hafs" && D.key !== "hafs" ? rcHafsFor(D.key) : rcPick(k);
   if (D.key !== "hafs") keys.push("hafs");
   if (rec) for (const g of rec) {            // every other reading of the word, by one of its riwayat
     const ks = K.meta.keys.filter((k, i) => g[1] & (1 << i));
-    if (ks.length && !ks.some(k => keys.includes(k))) keys.push(ks[0]);
+    if (ks.length && !ks.some(k => keys.includes(k))) keys.push(ks.find(k => reciterFor(K, k, n, prefOf(k))) || ks[0]);
   }
+  let broken = false;
   for (const k of keys) {
-    const rc = k === "hafs" && D.key !== "hafs" ? rcHafsFor(D.key) : rcPick(k);
-    row.appendChild(listenButton(RIW[k].short + " · " + rc.short, rc, k, K, n, seq));
+    const pref = prefOf(k), rc = reciterFor(K, k, n, pref);
+    if (rc) {
+      const b = listenButton(RIW[k].short + " · " + rc.short, rc, k, K, n, seq, D.meta.suras);
+      if (rc !== pref) b.title = "بدلاً من " + pref.name + "، فتسجيله لهذه الآية ناقص في المصدر";
+      row.appendChild(b);
+    } else {                                 // no sound recording of this aya in the riwayah
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "play"; b.disabled = true;
+      b.title = "تسجيل هذه الآية ناقص في المصدر";
+      b.innerHTML = ICON_PLAY + ICON_STOP + "<span>" + esc(RIW[k].short + " · " + pref.short) + "</span>";
+      row.appendChild(b);
+      broken = true;
+    }
   }
   document.getElementById("infoListenNote").textContent =
-    "تُتلى الآية كاملةً من تسجيلات موقع mp3quran.net، وتحتاج اتصالاً بالإنترنت؛ ويُختار القارئ من الإعدادات في أسفل الفهرس.";
+    "تُتلى الآية كاملةً من تسجيلات موقع mp3quran.net، وتحتاج اتصالاً بالإنترنت؛ ويُختار القارئ من الإعدادات في أسفل الفهرس." +
+    (broken ? " والزرّ الباهت: تسجيل هذه الآية ناقص في المصدر." : "");
   box.hidden = false;
 }
 function renderReciterOpts() {
@@ -2108,11 +2156,14 @@ async function selectRiwaya(key) {
       "(ويمكن إظهار التقليل بنقطة مجوّفة من الإعدادات)، وأمام الحرف للإشمام، وفوق الحرف للاختلاس في الفتحة والضمة وتحته في الكسرة، " +
       "ومكانَ الهمزة مع حركتها للإبدال وبلا حركة للتسهيل؛ وجرّةٌ مكان الهمزة المنقولة حركتُها في ورش. ولا تغيير في رسم ولا قراءة. " +
       "الأحمر: الحرف الذي يخالف فيه نصُّ الرواية نصَّ رواية حفص مع علامته، والعلامة التي يحذفها مع حرفها، والكلمة كلها إذا كان في حفص حرفٌ أو كلمة ليست فيها؛ " +
-      "ومعه في ورش اللام التي يغلّظها الأزرق. ولا يُلوَّن ما لا يظهر في الرسم كمدّ البدل وترقيق الراءات. " +
+      "ومعه ما لا يظهر في الرسم: أصول الأزرق عن ورش (تغليظ اللام، ومدّ البدل، ومدّ اللين المهموز، وترقيق الراء)، " +
+      "والإمالة والتقليل عند الوقف على رؤوس الآي المرسومة على الوصل، وإدغام نون «يسٓ» و«نٓ»؛ ولكلٍّ منها شرحه في البطاقة. " +
       "وفي رواية حفص يُلوَّن ما قرأه غيرُ حفص من الروايات السبع كلمةً أخرى. " +
       "شرح الفرق والقراءات: محسوبٌ من نصوص الروايات السبع في هذا التطبيق، على طريقة حواشي مصحف الكويت، ولا يشمل بقية القراءات العشر. " +
+      (AUDIO_ON ? "الاستماع: تلاوات موقع mp3quran.net وتوقيت آياتها، تُطلب منه عند فتح بطاقة الكلمة وتُتلى بها الآية كاملة. " : "") +
       "الأحزاب: علامات ۞ في مصحف كل رواية (أرباع في حفص وشعبة والبزي، وأثمان في قالون وورش والدوري والسوسي). " +
-      "انقر الصفحة لإظهار الأشرطة، وانقر الكلمة الحمراء لشرح الفرق وقراءاتها، وانقر مرتين على أي كلمة لعرض قراءاتها، واضغط مطوّلاً لتحديد النص ونسخه.";
+      "انقر الصفحة لإظهار الأشرطة، وانقر الكلمة الحمراء لشرح الفرق وقراءاتها، وانقر مرتين على أي كلمة لعرض قراءاتها" +
+      (AUDIO_ON ? " والاستماع إلى آيتها" : "") + "، واضغط مطوّلاً لتحديد النص ونسخه.";
   } catch (err) {
     loading.hidden = false;
     let missing = err && err.missing;

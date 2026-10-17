@@ -1,5 +1,5 @@
 // Offline cache for the mushaf: the app at once, each riwayah's pages once opened.
-const CACHE = "mushaf-de316187ddba";
+const CACHE = "mushaf-4bd2bd2ae97c";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

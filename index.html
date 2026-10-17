@@ -178,6 +178,19 @@ body.bars .selbar{bottom:calc(var(--bbh,110px) + 10px)}
 .rd .who{font-size:13.5px;line-height:1.6}
 .rd .who em{font-style:normal;color:var(--accent);font-weight:700}
 .rd .none{font-size:14px;color:var(--muted)}
+.listen{display:flex;flex-direction:column;gap:8px}
+.lrow{display:flex;flex-wrap:wrap;gap:8px}
+.play{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 14px 0 12px;border-radius:12px;background:var(--ground);font-size:14px;font-weight:600;color:var(--ink)}
+.play svg{width:15px;height:15px;flex:none}
+.play .ic-stop{display:none}
+.play.on{background:var(--accent);color:var(--accent-ink)}
+.play.on .ic-play{display:none}
+.play.on .ic-stop{display:block}
+.play.wait{opacity:.55}
+.play.err{color:var(--diff)}
+.play:disabled{opacity:.45}
+.lnote{font-size:12px;color:var(--muted);line-height:1.6}
+.settings select{height:32px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:13px;padding:0 6px;max-width:60vw}
 
 /* ---- search ---- */
 .sheet.tall{height:86%}
@@ -298,6 +311,12 @@ body.bars .findbar.top{top:auto;bottom:calc(var(--bbh,110px) + 10px)}
           <button data-taqlil="hollow" aria-pressed="false">مجوّفة</button>
         </span>
       </label>
+      <label id="rcRow" hidden>قارئ <span id="rcName">الرواية</span>
+        <select id="rcSel" aria-label="قارئ الرواية"></select>
+      </label>
+      <label id="rcHafsRow" hidden>قارئ حفص للمقارنة
+        <select id="rcHafs" aria-label="قارئ حفص للمقارنة"></select>
+      </label>
       <button class="linkbtn" id="legendBtn">علامات الضبط والألوان</button>
     </div>
     <div class="about" id="about"></div>
@@ -311,6 +330,11 @@ body.bars .findbar.top{top:auto;bottom:calc(var(--bbh,110px) + 10px)}
       <div class="cmp" id="infoCmp" hidden>
         <span class="lbl" id="infoRLabel">ورش</span><canvas id="infoCanvas" aria-hidden="true"></canvas>
         <span class="lbl" id="infoHLabel">حفص</span><canvas id="infoHafs" aria-hidden="true"></canvas>
+      </div>
+      <div class="listen" id="infoListen" hidden>
+        <div class="sec">استمع إلى الآية</div>
+        <div class="lrow" id="infoListenRow"></div>
+        <div class="lnote" id="infoListenNote"></div>
       </div>
       <div class="sec" id="infoKindsH" hidden>نوع الخلاف</div>
       <div class="kinds" id="infoKinds"></div>
@@ -1242,6 +1266,7 @@ let ignorePop = 0;
 function popHistory() { ignorePop++; try { history.back(); } catch (_) { ignorePop--; } }
 function closeSheets(fromPop) {
   const was = !infoScrim.hidden;
+  if (was) stopListen();
   SCRIMS.forEach(o => { o.hidden = true; });
   if (useHistory && sheetOpen && !fromPop) { sheetOpen = false; popHistory(); }
   sheetOpen = false;
@@ -1294,6 +1319,7 @@ function renderIndex() {
 }
 function openIndex(focusGoto) {
   renderIndex();
+  renderReciterOpts();
   openSheet(indexScrim);
   document.getElementById("gotoInput").value = "";
   if (focusGoto) setTimeout(() => document.getElementById("gotoInput").focus(), 50);
@@ -1472,6 +1498,176 @@ function kindRows(D, codes) {
     .map(([t, d]) => '<div class="kind"><b>' + esc(t) + '</b><span>' + esc(d) + '</span></div>').join("");
 }
 
+/* ---------- listening: the aya in each riwayah, from the recitations of mp3quran.net ----------
+   Whole-sura recordings with the time of every aya (their ayat_timing API).  Every read below was
+   checked sura by sura against the app's counts: its ayat are the riwayah's own count, save where
+   `alt` names the count its timing follows in one sura (al-Mulk), and `fatiha` shifts the aya labels
+   of al-Fatiha (an unnumbered opening before the first aya).  Only the aya can be played, not the
+   word: the recordings are timed by aya. */
+const AUDIO_ON = !window.MUSHAF_B64;        // the claude.ai artifact cannot reach another site
+const MP3Q_CDN = "https://cdn.mp3quran.net/audio/", MP3Q_API = "https://www.mp3quran.net/api/v3/ayat_timing";
+const RECITERS = {
+  qalun: [{id: 270, name: "محمود خليل الحصري", short: "الحصري", dir: "mahmoud-husary/r5"},
+          {id: 75, name: "علي بن عبدالرحمن الحذيفي", short: "الحذيفي", dir: "ali-hudhaifi/r2"},
+          {id: 208, name: "الدوكالي محمد العالم", short: "الدوكالي", dir: "dokali-alim/r1"}],
+  warsh: [{id: 120, name: "محمود خليل الحصري", short: "الحصري", dir: "mahmoud-husary/r3"},
+          {id: 14, name: "ياسين الجزائري", short: "الجزائري", dir: "yassen-jazairi/r1"},
+          {id: 16, name: "العيون الكوشي", short: "الكوشي", dir: "laayoun-kouchi/r1"},
+          {id: 80, name: "عمر القزابري", short: "القزابري", dir: "omar-kazabri/r1"}],
+  bazzi: [{id: 296, name: "عكاشة كميني", short: "كميني", dir: "okasha-kameny/r2"}],
+  duri: [{id: 269, name: "محمود خليل الحصري", short: "الحصري", dir: "mahmoud-husary/r4", alt: {67: "qalun"}}],
+  susi: [{id: 65, name: "عبدالرشيد صوفي", short: "صوفي", dir: "abdulrasheed-sufi/r2", alt: {67: "hafs"}}],
+  shubah: [{id: 305, name: "علي بن عبدالرحمن الحذيفي", short: "الحذيفي", dir: "ali-hudhaifi/r3"}],
+  hafs: [{id: 118, name: "محمود خليل الحصري", short: "الحصري", dir: "mahmoud-husary/r1", fatiha: -1},
+         {id: 258, name: "عبدالرشيد صوفي", short: "صوفي", dir: "abdulrasheed-sufi/r3"},
+         {id: 112, name: "محمد صديق المنشاوي", short: "المنشاوي", dir: "muhammad-minshawi/r1"},
+         {id: 123, name: "مشاري العفاسي", short: "العفاسي", dir: "mishary-alafasy/r1"}]
+};
+function rcPick(key) {
+  const list = RECITERS[key], id = store.get("reciter." + key, list[0].id);
+  return list.find(r => r.id === id) || list[0];
+}
+function rcHafsFor(key) {            // Hafs to compare with: the same reciter when he has Hafs too
+  const list = RECITERS.hafs, v = store.get("reciter.hafs", "auto");
+  if (v !== "auto") return list.find(r => r.id === v) || list[0];
+  const mine = rcPick(key);
+  return list.find(r => r.short === mine.short) || list[0];
+}
+function ayaIn(K, key, n) {          // the aya of word number n in a riwayah's own count (aya 0: before al-Fatiha's first)
+  const t = K.meta.ayat[key];
+  if (!t.first) { const f = new Int32Array(t.d.length); let c = 0; t.d.forEach((d, i) => { c += d; f[i] = c; }); t.first = f; }
+  const f = t.first;
+  let lo = 0, hi = f.length - 1, k = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (f[m] <= n) { k = m; lo = m + 1; } else hi = m - 1; }
+  if (k < 0) return {sura: 1, aya: 0};
+  let s = 0;
+  for (let i = 0; i < t.s.length; i++) if (t.s[i] <= k) s = i;
+  return {sura: s + 1, aya: k - t.s[s] + 1};
+}
+function listenTarget(K, key, rc, n) {
+  const a = ayaIn(K, key, n), alt = rc.alt && rc.alt[a.sura];
+  return alt ? ayaIn(K, alt, n) : a;
+}
+const timings = new Map();
+function timingOf(read, sura) {
+  const k = read + ":" + sura;
+  if (!timings.has(k)) {
+    const pr = fetch(MP3Q_API + "?surah=" + sura + "&read=" + read)
+      .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(j => j.map(e => [e.ayah, e.start_time, e.end_time]));
+    pr.catch(() => timings.delete(k));
+    timings.set(k, pr);
+  }
+  return timings.get(k);
+}
+function segOf(rc, t, sura, aya) {   // [start, end] in ms of the aya in the sura's recording
+  if (sura === 1 && rc.fatiha) aya += rc.fatiha;
+  const e = t.find(x => x[0] === aya);
+  if (e) return [e[1], e[2]];
+  if (aya <= 0) { const f = t.find(x => x[0] === 1); return f ? [0, f[1]] : null; }   // the opening before the first aya
+  return null;
+}
+let player = null, playing = null;
+function audioEl() {
+  if (!player) {
+    player = new Audio();
+    player.preload = "auto";
+    player.addEventListener("timeupdate", () => { if (playing && player.currentTime >= playing.end) stopListen(); });
+    player.addEventListener("ended", () => stopListen());
+    player.addEventListener("loadedmetadata", () => {
+      if (playing && Math.abs(player.currentTime - playing.start) > 0.6) player.currentTime = playing.start;
+    });
+    player.addEventListener("error", () => {
+      if (!playing) return;
+      const b = playing.btn;
+      stopListen();
+      b.classList.add("err");
+      toast("تعذّر تشغيل التلاوة؛ تحقّق من الاتصال بالإنترنت", 3500);
+    });
+  }
+  return player;
+}
+function stopListen() {
+  if (player) player.pause();
+  if (playing) { playing.btn.classList.remove("on"); playing.btn.setAttribute("aria-pressed", "false"); playing = null; }
+}
+function startListen(btn) {
+  if (playing && playing.btn === btn) { stopListen(); return; }
+  stopListen();
+  const job = btn._job;
+  if (!job || !job.seg) return;
+  const el = audioEl();
+  const url = MP3Q_CDN + job.rc.dir + "/" + String(job.sura).padStart(3, "0") + ".mp3";
+  const s = job.seg[0] / 1000, e = job.seg[1] / 1000;
+  playing = {btn, start: s, end: e};
+  btn.classList.remove("err"); btn.classList.add("on"); btn.setAttribute("aria-pressed", "true");
+  if (el.dataset.url === url && el.readyState >= 1) el.currentTime = s;
+  else { el.dataset.url = url; el.src = url + "#t=" + s.toFixed(2) + "," + e.toFixed(2); }
+  const pr = el.play();              // in the tap itself (iPhone and Android ask for a user gesture)
+  if (pr && pr.catch) pr.catch(() => {
+    if (!playing || playing.btn !== btn) return;
+    stopListen();
+    btn.classList.add("err");
+    toast("تعذّر تشغيل التلاوة؛ اضغط مرة أخرى أو تحقّق من الاتصال بالإنترنت", 3500);
+  });
+}
+const ICON_PLAY = '<svg class="ic-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
+const ICON_STOP = '<svg class="ic-stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor"/></svg>';
+function listenButton(label, rc, key, K, n, seq) {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "play wait";
+  b.setAttribute("aria-pressed", "false");
+  b.innerHTML = ICON_PLAY + ICON_STOP + "<span>" + esc(label) + "</span>";
+  const a = listenTarget(K, key, rc, n);
+  const prepare = () => timingOf(rc.id, a.sura).then(t => {
+    if (seq !== infoSeq) return;
+    const seg = segOf(rc, t, a.sura, a.aya);
+    b._job = {rc, sura: a.sura, seg};
+    b.classList.remove("wait", "err");
+    if (!seg) { b.disabled = true; b.title = "لا توقيت لهذه الآية في التسجيل"; }
+  }).catch(() => { if (seq === infoSeq) { b.classList.remove("wait"); b.classList.add("err"); } });
+  prepare();
+  b.addEventListener("click", () => {
+    if (b._job) startListen(b);
+    else { toast("جارٍ الوصول إلى التلاوة… اضغط مرة أخرى بعد لحظة", 2500); prepare(); }
+  });
+  return b;
+}
+function setupListen(K, D, p, rec, seq) {
+  const box = document.getElementById("infoListen"), row = document.getElementById("infoListenRow");
+  row.innerHTML = "";
+  box.hidden = true;
+  if (!AUDIO_ON || !K.meta.ayat) return;
+  const n = numOf(D, p)[0], keys = [D.key];
+  if (D.key !== "hafs") keys.push("hafs");
+  if (rec) for (const g of rec) {            // every other reading of the word, by one of its riwayat
+    const ks = K.meta.keys.filter((k, i) => g[1] & (1 << i));
+    if (ks.length && !ks.some(k => keys.includes(k))) keys.push(ks[0]);
+  }
+  for (const k of keys) {
+    const rc = k === "hafs" && D.key !== "hafs" ? rcHafsFor(D.key) : rcPick(k);
+    row.appendChild(listenButton(RIW[k].short + " · " + rc.short, rc, k, K, n, seq));
+  }
+  document.getElementById("infoListenNote").textContent =
+    "تُتلى الآية كاملةً من تسجيلات موقع mp3quran.net، وتحتاج اتصالاً بالإنترنت؛ ويُختار القارئ من الإعدادات في أسفل الفهرس.";
+  box.hidden = false;
+}
+function renderReciterOpts() {
+  const row = document.getElementById("rcRow"), hrow = document.getElementById("rcHafsRow");
+  if (!AUDIO_ON) { row.hidden = hrow.hidden = true; return; }
+  const key = state.riwaya, sel = document.getElementById("rcSel"), hs = document.getElementById("rcHafs");
+  document.getElementById("rcName").textContent = RIW[key].short;
+  sel.innerHTML = RECITERS[key].map(r => '<option value="' + r.id + '">' + esc(r.name) + "</option>").join("");
+  sel.value = String(rcPick(key).id);
+  hs.innerHTML = '<option value="auto">تلقائي: القارئ نفسه إن وُجد، وإلا الحصري</option>' +
+    RECITERS.hafs.map(r => '<option value="' + r.id + '">' + esc(r.name) + "</option>").join("");
+  hs.value = String(store.get("reciter.hafs", "auto"));
+  row.hidden = false;
+  hrow.hidden = key === "hafs";
+}
+document.getElementById("rcSel").addEventListener("change", e => store.set("reciter." + state.riwaya, +e.target.value));
+document.getElementById("rcHafs").addEventListener("change", e => store.set("reciter.hafs", e.target.value === "auto" ? "auto" : +e.target.value));
+
 let infoAya = null, infoSeq = 0;
 function openInfo(D, p, a) {
   infoAya = a;
@@ -1491,6 +1687,9 @@ function openInfo(D, p, a) {
   hcan.hidden = hlab.hidden = true;
   kinds.innerHTML = ""; kindsH.hidden = true;
   reads.innerHTML = ""; reads.hidden = readsH.hidden = true;
+  stopListen();
+  document.getElementById("infoListen").hidden = true;
+  document.getElementById("infoListenRow").innerHTML = "";
   note.textContent = "جارٍ تحميل القراءات…";
   // the word's own notes: al-Azraq's usul (heavy lam, badal, lin, thin ra), the signs of dabt
   const own = noteCodes(D, p).filter(c => USUL.has(c));
@@ -1500,6 +1699,7 @@ function openInfo(D, p, a) {
     if (seq !== infoSeq) return;
     const [rec, before] = recOf(K, D, p);
     const meBit = 1 << K.meta.keys.indexOf(D.key);
+    setupListen(K, D, p, rec, seq);
     if (!rec) {
       if (own.length) { kinds.innerHTML = kindRows(D, own); kindsH.hidden = false; }
       note.textContent = own.length ? "الرسم واحد في الروايات السبع، والخلاف في النطق." :
